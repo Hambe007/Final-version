@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRH Bicycle Management System</title>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+
+    <!-- Chart.js for analytics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <img src="/logo.png" alt="HRH Logo" class="logo">
+                <h2>Bicycle Management</h2>
+            </div>
+            
+            <ul class="nav-links">
+                <li class="active">
+                    <a href="#dashboard" onclick="showTab('dashboard')">
+                        <i class="fas fa-th-large"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="#issue" onclick="showTab('issue')">
+                        <i class="fas fa-bicycle"></i>
+                        Issue Bicycle
+                    </a>
+                </li>
+                <li>
+                    <a href="#return" onclick="showTab('return')">
+                        <i class="fas fa-undo"></i>
+                        Return Bicycle
+                    </a>
+                </li>
+                <li>
+                    <a href="#maintenance" onclick="showTab('maintenance')">
+                        <i class="fas fa-tools"></i>
+                        Maintenance
+                    </a>
+                </li>
+                <li>
+                    <a href="#reports" onclick="showTab('reports')">
+                        <i class="fas fa-chart-bar"></i>
+                        Reports
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="search-bar">
+                    <input type="text" placeholder="Search..." id="globalSearch">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-icon"></span>
+                    <span class="status-text">Online</span>
+                </div>
+                <div class="user-info">
+                    <span class="notification-badge">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationCount">0</span>
+                    </span>
+                    <span class="user-name" id="userName">Admin</span>
+                </div>
+            </div>
+
+            <!-- Content Tabs -->
+            <div class="tab-container">
+                <!-- Dashboard Tab -->
+                <div id="dashboardTab" class="tab-content active">
+                    <div class="dashboard-grid">
+                        <!-- Stats Cards -->
+                        <div class="stats-section"></div>
+                        <!-- Charts -->
+                        <div class="charts-section"></div>
+                        <!-- Recent Activity -->
+                        <div class="activity-section"></div>
+                    </div>
+                </div>
+
+                <!-- Other tabs will be added here -->
+                <div id="issueTab" class="tab-content"></div>
+                <div id="returnTab" class="tab-content"></div>
+                <div id="maintenanceTab" class="tab-content"></div>
+                <div id="reportsTab" class="tab-content"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Modal Container -->
+    <div id="modalContainer" class="modal-container">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript Modules -->
+    <script src="js/config.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/offline-manager.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+/* Root Variables */
+:root {
+    --primary-color: #3f51b5;
+    --secondary-color: #303f9f;
+    --success-color: #4caf50;
+    --warning-color: #ff9800;
+    --danger-color: #f44336;
+    --light-bg: #f5f6fa;
+    --border-color: #ddd;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    --transition: all 0.3s ease;
+}
+
+/* Core Layout */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    width: 250px;
+    background: var(--primary-color);
+    color: white;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    transition: var(--transition);
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 1.5rem;
+}
+
+.logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 1rem;
+}
+
+.nav-links {
+    list-style: none;
+}
+
+.nav-links li {
+    margin-bottom: 0.5rem;
+}
+
+.nav-links a {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: var(--transition);
+}
+
+.nav-links a:hover,
+.nav-links .active a {
+    background: rgba(255,255,255,0.1);
+}
+
+.nav-links i {
+    margin-right: 0.75rem;
+    width: 20px;
+    text-align: center;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+/* Top Bar */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    background: var(--light-bg);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    width: 300px;
+}
+
+.search-bar input {
+    border: none;
+    background: none;
+    padding: 0.5rem;
+    width: 100%;
+    outline: none;
+}
+
+.search-bar i {
+    color: var(--text-secondary);
+}
+
+/* Connection Status */
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--success-color);
+}
+
+.offline .status-icon {
+    background: var(--danger-color);
+}
+
+/* User Info */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.notification-badge {
+    position: relative;
+}
+
+.badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--danger-color);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Stats Cards */
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-info h3 {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.stat-info p {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+/* Charts Section */
+.charts-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+}
+
+/* Activity Section */
+.activity-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+}
+
+.activity-item {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Notifications */
+.notification-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.notification {
+    background: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Modal */
+.modal-container {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+}
+
+.close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        padding: 1rem;
+    }
+
+    .main-content {
+        padding: 1rem;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .search-bar {
+        width: 200px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .sidebar,
+    .top-bar,
+    .notification-container {
+        display: none;
+    }
+
+    .main-content {
+        padding: 0;
+    }
+
+    .dashboard-grid {
+        gap: 1rem;
+    }
+}
+// config.js
+const CONFIG = {
+    firebase: {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_STORAGE_BUCKET",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    },
+    app: {
+        name: "HRH Bicycle Management System",
+        version: "2.0.0",
+        maxCacheAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        batchSize: 100,
+        syncInterval: 5 * 60 * 1000, // 5 minutes
+        defaultPageSize: 10
+    },
+    offline: {
+        enabled: true,
+        compression: true,
+        encryption: false,
+        syncOnStartup: true
+    },
+    ui: {
+        theme: 'light',
+        animations: true,
+        notificationDuration: 3000,
+        dateFormat: 'DD/MM/YYYY HH:mm',
+        charts: {
+            colors: ['#3f51b5', '#4caf50', '#ff9800', '#f44336'],
+            animation: true
+        }
+    }
+};
+
+// Initialize Firebase
+firebase.initializeApp(CONFIG.firebase);
+const db = firebase.firestore();
+// database.js
+class DatabaseManager {
+    constructor() {
+        this.db = firebase.firestore();
+        this.offlineManager = new OfflineManager();
+        this.setupPersistence();
+    }
+
+    async setupPersistence() {
+        try {
+            await this.db.enablePersistence({ synchronizeTabs: true });
+            console.log('Persistence enabled');
+        } catch (err) {
+            if (err.code === 'failed-precondition') {
+                console.warn('Multiple tabs open, persistence enabled in first tab only');
+            } else if (err.code === 'unimplemented') {
+                console.warn('Browser does not support persistence');
+            }
+        }
+    }
+
+    async addRental(rentalData) {
+        try {
+            if (navigator.onLine) {
+                const docRef = await this.db.collection('rentals').add({
+                    ...rentalData,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return docRef.id;
+            } else {
+                return await this.offlineManager.saveOfflineData('rentals', rentalData);
+            }
+        } catch (error) {
+            console.error('Error adding rental:', error);
+            throw error;
+        }
+    }
+
+    async updateRental(rentalId, updateData) {
+        try {
+            if (navigator.onLine) {
+                await this.db.collection('rentals').doc(rentalId).update({
+                    ...updateData,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                await this.offlineManager.updateOfflineData('rentals', rentalId, updateData);
+            }
+        } catch (error) {
+            console.error('Error updating rental:', error);
+            throw error;
+        }
+    }
+
+    async addMaintenanceRecord(maintenanceData) {
+        try {
+            if (navigator.onLine) {
+                const docRef = await this.db.collection('maintenance').add({
+                    ...maintenanceData,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return docRef.id;
+            } else {
+                return await this.offlineManager.saveOfflineData('maintenance', maintenanceData);
+            }
+        } catch (error) {
+            console.error('Error adding maintenance record:', error);
+            throw error;
+        }
+    }
+
+    async getBicycleStatus(bicycleNumber) {
+        try {
+            const snapshot = await this.db.collection('bicycles')
+                .where('number', '==', bicycleNumber)
+                .get();
+
+            if (!snapshot.empty) {
+                return snapshot.docs[0].data().status;
+            }
+            return 'unknown';
+        } catch (error) {
+            console.error('Error getting bicycle status:', error);
+            throw error;
+        }
+    }
+
+    async getActiveRentals() {
+        try {
+            const snapshot = await this.db.collection('rentals')
+                .where('status', '==', 'Active')
+                .orderBy('timestamp', 'desc')
+                .get();
+
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error getting active rentals:', error);
+            throw error;
+        }
+    }
+
+    async searchRentals(query) {
+        try {
+            let queryRef = this.db.collection('rentals');
+
+            if (query.roomNumber) {
+                queryRef = queryRef.where('roomNumber', '==', query.roomNumber);
+            }
+            if (query.status) {
+                queryRef = queryRef.where('status', '==', query.status);
+            }
+            if (query.dateRange) {
+                queryRef = queryRef.where('timestamp', '>=', query.dateRange.start)
+                                 .where('timestamp', '<=', query.dateRange.end);
+            }
+
+            const snapshot = await queryRef.orderBy('timestamp', 'desc').get();
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error searching rentals:', error);
+            throw error;
+        }
+    }
+
+    // Real-time listeners
+    onRentalsChanged(callback) {
+        return this.db.collection('rentals')
+            .orderBy('timestamp', 'desc')
+            .limit(10)
+            .onSnapshot(snapshot => {
+                const changes = snapshot.docChanges().map(change => ({
+                    type: change.type,
+                    id: change.doc.id,
+                    data: change.doc.data()
+                }));
+                callback(changes);
+            });
+    }
+
+    onMaintenanceChanged(callback) {
+        return this.db.collection('maintenance')
+            .orderBy('timestamp', 'desc')
+            .limit(10)
+            .onSnapshot(snapshot => {
+                const changes = snapshot.docChanges().map(change => ({
+                    type: change.type,
+                    id: change.doc.id,
+                    data: change.doc.data()
+                }));
+                callback(changes);
+            });
+    }
+}
+
+// Initialize database manager
+const dbManager = new DatabaseManager();
+// ui-manager.js
+class UIManager {
+    constructor() {
+        this.currentTab = 'dashboard';
+        this.setupEventListeners();
+        this.notifications = [];
+    }
+
+    setupEventListeners() {
+        // Tab switching
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tab = e.target.closest('a').getAttribute('href').replace('#', '');
+                this.showTab(tab);
+            });
+        });
+
+        // Global search
+        document.getElementById('globalSearch').addEventListener('input', 
+            this.debounce(this.handleGlobalSearch.bind(this), 300)
+        );
+
+        // Online/Offline status
+        window.addEventListener('online', () => this.updateConnectionStatus(true));
+        window.addEventListener('offline', () => this.updateConnectionStatus(false));
+    }
+
+    showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.style.display = 'none';
+        });
+
+        // Show selected tab
+        const selectedTab = document.getElementById(`${tabName}Tab`);
+        if (selectedTab) {
+            selectedTab.style.display = 'block';
+            this.currentTab = tabName;
+            this.updateTabContent(tabName);
+        }
+
+        // Update navigation
+        document.querySelectorAll('.nav-links li').forEach(li => {
+            li.classList.remove('active');
+        });
+        document.querySelector(`a[href="#${tabName}"]`).parentElement.classList.add('active');
+    }
+
+    updateTabContent(tabName) {
+        switch(tabName) {
+            case 'dashboard':
+                this.updateDashboard();
+                break;
+            case 'issue':
+                this.updateIssueTab();
+                break;
+            case 'return':
+                this.updateReturnTab();
+                break;
+            case 'maintenance':
+                this.updateMaintenanceTab();
+                break;
+            case 'reports':
+                this.updateReportsTab();
+                break;
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <i class="fas ${this.getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+        `;
+
+        document.getElementById('notificationContainer').appendChild(notification);
+
+        // Remove notification after delay
+        setTimeout(() => {
+            notification.remove();
+        }, CONFIG.ui.notificationDuration);
+    }
+
+    getNotificationIcon(type) {
+        switch(type) {
+            case 'success': return 'fa-check-circle';
+            case 'error': return 'fa-exclamation-circle';
+            case 'warning': return 'fa-exclamation-triangle';
+            default: return 'fa-info-circle';
+        }
+    }
+
+    updateConnectionStatus(isOnline) {
+        const statusElement = document.getElementById('connectionStatus');
+        statusElement.className = `connection-status ${isOnline ? 'online' : 'offline'}`;
+        statusElement.querySelector('.status-text').textContent = isOnline ? 'Online' : 'Offline';
+    }
+
+    showModal(title, content) {
+        const modal = document.getElementById('modalContainer');
+        const modalBody = document.getElementById('modalBody');
+
+        modalBody.innerHTML = `
+            <h2>${title}</h2>
+            <div class="modal-content-body">${content}</div>
+        `;
+
+        modal.style.display = 'flex';
+
+        // Close modal on click outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeModal();
+            }
+        });
+    }
+
+    closeModal() {
+        document.getElementById('modalContainer').style.display = 'none';
+    }
+
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    async handleGlobalSearch(e) {
+        const searchTerm = e.target.value.trim().toLowerCase();
+        if (searchTerm.length < 2) return;
+
+        try {
+            const results = await dbManager.searchRentals({ term: searchTerm });
+            this.updateSearchResults(results);
+        } catch (error) {
+            console.error('Search error:', error);
+            this.showNotification('Error performing search', 'error');
+        }
+    }
+
+    updateSearchResults(results) {
+        // Implementation depends on your UI design
+    }
+}
+
+// Initialize UI manager
+const uiManager = new UIManager();
+// tabs/dashboard-tab.js
+class DashboardTab {
+    constructor() {
+        this.charts = {};
+        this.initializeCharts();
+        this.setupRealTimeUpdates();
+    }
+
+    async initializeCharts() {
+        // Rental Trends Chart
+        this.charts.rentalTrends = new Chart(
+            document.getElementById('rentalTrendsChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Daily Rentals',
+                        data: [],
+                        borderColor: CONFIG.ui.charts.colors[0],
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            }
+        );
+
+        // Bicycle Status Chart
+        this.charts.bicycleStatus = new Chart(
+            document.getElementById('bicycleStatusChart'),
+            {
+                type: 'doughnut',
+                data: {
+                    labels: ['Available', 'In Use', 'Maintenance'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: CONFIG.ui.charts.colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            }
+        );
+    }
+
+    setupRealTimeUpdates() {
+        dbManager.onRentalsChanged(changes => {
+            this.updateDashboardStats();
+            this.updateCharts();
+        });
+
+        dbManager.onMaintenanceChanged(changes => {
+            this.updateMaintenanceStats();
+        });
+    }
+
+    async updateDashboardStats() {
+        const stats = await dbManager.getDashboardStats();
+        
+        // Update stats cards
+        document.getElementById('totalRentalsToday').textContent = stats.totalRentalsToday;
+        document.getElementById('activeRentals').textContent = stats.activeRentals;
+        document.getElementById('maintenanceCount').textContent = stats.maintenanceCount;
+        document.getElementById('availableBikes').textContent = stats.availableBikes;
+    }
+
+    updateCharts() {
+        // Update rental trends
+        this.updateRentalTrendsChart();
+        
+        // Update bicycle status
+        this.updateBicycleStatusChart();
+    }
+}
+
+// tabs/issue-tab.js
+class IssueTab {
+    constructor() {
+        this.initializeForm();
+        this.setupListeners();
+    }
+
+    initializeForm() {
+        // Set default dates
+        const now = new Date();
+        document.getElementById('issueDate').value = now.toISOString().slice(0, 16);
+        
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('returnDate').value = tomorrow.toISOString().slice(0, 10);
+    }
+
+    setupListeners() {
+        document.getElementById('issueForm').addEventListener('submit', 
+            this.handleIssueSubmit.bind(this)
+        );
+
+        document.getElementById('bicycleType').addEventListener('change',
+            this.updateBicycleNumbers.bind(this)
+        );
+    }
+
+    async handleIssueSubmit(event) {
+        event.preventDefault();
+        
+        try {
+            const formData = this.getFormData();
+            await dbManager.addRental(formData);
+            
+            uiManager.showNotification('Bicycle issued successfully', 'success');
+            event.target.reset();
+            this.initializeForm();
+            
+        } catch (error) {
+            console.error('Error issuing bicycle:', error);
+            uiManager.showNotification('Error issuing bicycle', 'error');
+        }
+    }
+}
+
+// tabs/return-tab.js
+class ReturnTab {
+    constructor() {
+        this.setupSearchForm();
+        this.loadActiveRentals();
+    }
+
+    async loadActiveRentals() {
+        try {
+            const rentals = await dbManager.getActiveRentals();
+            this.updateRentalsTable(rentals);
+        } catch (error) {
+            console.error('Error loading rentals:', error);
+            uiManager.showNotification('Error loading rentals', 'error');
+        }
+    }
+
+    updateRentalsTable(rentals) {
+        const tbody = document.getElementById('activeRentalsTable');
+        tbody.innerHTML = '';
+
+        rentals.forEach(rental => {
+            const row = this.createRentalRow(rental);
+            tbody.appendChild(row);
+        });
+    }
+}
+
+// tabs/maintenance-tab.js
+class MaintenanceTab {
+    constructor() {
+        this.setupMaintenanceForm();
+        this.loadMaintenanceRecords();
+    }
+
+    async loadMaintenanceRecords() {
+        try {
+            const records = await dbManager.getMaintenanceRecords();
+            this.updateMaintenanceTable(records);
+        } catch (error) {
+            console.error('Error loading maintenance records:', error);
+            uiManager.showNotification('Error loading maintenance records', 'error');
+        }
+    }
+}
+
+// tabs/reports-tab.js
+class ReportsTab {
+    constructor() {
+        this.setupReportFilters();
+        this.initializeCharts();
+    }
+
+    async generateReport(type, filters) {
+        try {
+            const reportData = await dbManager.generateReport(type, filters);
+            this.displayReport(reportData);
+        } catch (error) {
+            console.error('Error generating report:', error);
+            uiManager.showNotification('Error generating report', 'error');
+        }
+    }
+}
+// sw.js
+const CACHE_NAME = 'bicycle-management-v1';
+const STATIC_ASSETS = [
+    '/',
+    '/index.html',
+    '/styles.css',
+    '/js/config.js',
+    '/js/database.js',
+    '/js/ui-manager.js',
+    '/js/app.js',
+    '/js/tabs/dashboard-tab.js',
+    '/js/tabs/issue-tab.js',
+    '/js/tabs/return-tab.js',
+    '/js/tabs/maintenance-tab.js',
+    '/js/tabs/reports-tab.js'
+];
+
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => {
+                return cache.addAll(STATIC_ASSETS);
+            })
+    );
+});
+
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames
+                    .filter(name => name !== CACHE_NAME)
+                    .map(name => caches.delete(name))
+            );
+        })
+    );
+});
+
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request)
+            .then(response => {
+                if (response) {
+                    return response;
+                }
+
+                return fetch(event.request).then(response => {
+                    // Check if we received a valid response
+                    if (!response || response.status !== 200 || response.type !== 'basic') {
+                        return response;
+                    }
+
+                    // Clone the response
+                    const responseToCache = response.clone();
+
+                    caches.open(CACHE_NAME)
+                        .then(cache => {
+                            cache.put(event.request, responseToCache);
+                        });
+
+                    return response;
+                });
+            })
+    );
+});
+
+// Handle background sync
+self.addEventListener('sync', event => {
+    if (event.tag === 'sync-rentals') {
+        event.waitUntil(syncRentals());
+    }
+});
+
+async function syncRentals() {
+    try {
+        const dbName = 'bicycleManagementOfflineDB';
+        const db = await openDB(dbName, 1);
+        const tx = db.transaction('rentals', 'readonly');
+        const store = tx.objectStore('rentals');
+        
+        const pendingRentals = await store.index('syncStatus')
+            .getAll('pending');
+
+        for (const rental of pendingRentals) {
+            await syncRental(rental);
+        }
+    } catch (error) {
+        console.error('Error syncing rentals:', error);
+    }
+}
+
+// Initialize service worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('ServiceWorker registered:', registration);
+            })
+            .catch(error => {
+                console.error('ServiceWorker registration failed:', error);
+            });
+    });
+}
+// app.js
+class BicycleManagementApp {
+    constructor() {
+        this.dbManager = null;
+        this.uiManager = null;
+        this.tabs = {};
+    }
+
+    async initialize() {
+        try {
+            // Initialize managers
+            this.dbManager = new DatabaseManager();
+            this.uiManager = new UIManager();
+
+            // Initialize tabs
+            this.tabs.dashboard = new DashboardTab();
+            this.tabs.issue = new IssueTab();
+            this.tabs.return = new ReturnTab();
+            this.tabs.maintenance = new MaintenanceTab();
+            this.tabs.reports = new ReportsTab();
+
+            // Setup offline support
+            await this.setupOfflineSupport();
+
+            // Show initial tab
+            this.uiManager.showTab('dashboard');
+
+            console.log('Application initialized successfully');
+        } catch (error) {
+            console.error('Error initializing application:', error);
+            this.uiManager.showNotification(
+                'Error initializing application. Please refresh the page.',
+                'error'
+            );
+        }
+    }
+
+    async setupOfflineSupport() {
+        if (CONFIG.offline.enabled) {
+            await this.dbManager.setupPersistence();
+            if (CONFIG.offline.syncOnStartup) {
+                await this.dbManager.syncOfflineData();
+            }
+        }
+    }
+}
+
+// Initialize application
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new BicycleManagementApp();
+    app.initialize();
+});
