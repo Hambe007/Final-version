@@ -1,0 +1,3387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRH Bicycle Management System</title>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+
+    <!-- Chart.js for analytics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <img src="/logo.png" alt="HRH Logo" class="logo">
+                <h2>Bicycle Management</h2>
+            </div>
+            
+            <ul class="nav-links">
+                <li class="active">
+                    <a href="#dashboard" onclick="app.showTab('dashboard')">
+                        <i class="fas fa-th-large"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="#issue" onclick="app.showTab('issue')">
+                        <i class="fas fa-bicycle"></i>
+                        Issue Bicycle
+                    </a>
+                </li>
+                <li>
+                    <a href="#return" onclick="app.showTab('return')">
+                        <i class="fas fa-undo"></i>
+                        Return Bicycle
+                    </a>
+                </li>
+                <li>
+                    <a href="#maintenance" onclick="app.showTab('maintenance')">
+                        <i class="fas fa-tools"></i>
+                        Maintenance
+                    </a>
+                </li>
+                <li>
+                    <a href="#reports" onclick="app.showTab('reports')">
+                        <i class="fas fa-chart-bar"></i>
+                        Reports
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="search-bar">
+                    <input type="text" placeholder="Search..." id="globalSearch">
+                    <i class="fas fa-search"></i>
+                </div>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-icon"></span>
+                    <span class="status-text">Online</span>
+                </div>
+                <div class="user-info">
+                    <span class="notification-badge">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notificationCount">0</span>
+                    </span>
+                    <span class="user-name" id="userName">Admin</span>
+                </div>
+            </div>
+
+            <!-- Content Tabs -->
+            <div class="tab-container">
+                <!-- Dashboard Tab -->
+                <div id="dashboardTab" class="tab-content active">
+                    <div class="dashboard-grid">
+                        <div class="stats-section">
+                            <!-- Stats Cards -->
+                            <div class="stat-card">
+                                <div class="stat-icon available">
+                                    <i class="fas fa-bicycle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3>Available Bicycles</h3>
+                                    <p id="availableBikesCount">0</p>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon active">
+                                    <i class="fas fa-running"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3>Active Rentals</h3>
+                                    <p id="activeRentalsCount">0</p>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon maintenance">
+                                    <i class="fas fa-tools"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3>In Maintenance</h3>
+                                    <p id="maintenanceCount">0</p>
+                                </div>
+                            </div>
+
+                            <div class="stat-card">
+                                <div class="stat-icon overdue">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h3>Overdue Returns</h3>
+                                    <p id="overdueCount">0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="charts-section">
+                            <div class="chart-container">
+                                <canvas id="rentalTrendsChart"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="bicycleStatusChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="activity-section">
+                            <h3>Recent Activity</h3>
+                            <div id="recentActivityList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Issue Tab -->
+                <div id="issueTab" class="tab-content"></div>
+
+                <!-- Return Tab -->
+                <div id="returnTab" class="tab-content"></div>
+
+                <!-- Maintenance Tab -->
+                <div id="maintenanceTab" class="tab-content"></div>
+
+                <!-- Reports Tab -->
+                <div id="reportsTab" class="tab-content"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Modal Container -->
+    <div id="modalContainer" class="modal-container">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Load JavaScript Modules -->
+    <script src="js/config.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/offline-manager.js"></script>
+    <script src="js/ui-manager.js"></script>
+    <script src="js/tabs/dashboard-tab.js"></script>
+    <script src="js/tabs/issue-tab.js"></script>
+    <script src="js/tabs/return-tab.js"></script>
+    <script src="js/tabs/maintenance-tab.js"></script>
+    <script src="js/tabs/reports-tab.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+// js/config.js
+const CONFIG = {
+    firebase: {
+        apiKey: "AIzaSyBjAGc8L0bkO_2RbWi0-rw7__lSHCoBrJQ",
+        authDomain: "bicycle-issuing-system2.firebaseapp.com",
+        projectId: "bicycle-issuing-system2",
+        storageBucket: "bicycle-issuing-system2.firebasestorage.app",
+        messagingSenderId: "64926990610",
+        appId: "1:64926990610:web:f45390888ea1d0dfb5f3cb"
+    },
+    app: {
+        name: "HRH Bicycle Management System",
+        version: "2.0.0",
+        maxCacheAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        batchSize: 100,
+        syncInterval: 5 * 60 * 1000, // 5 minutes
+        defaultPageSize: 10,
+        bicycleTypes: {
+            regular: { prefix: 'R', start: 1000, count: 501 },
+            kids: { prefix: 'K', start: 1, count: 100 },
+            libero: { prefix: 'L', start: 1, count: 40 }
+        }
+    },
+    offline: {
+        enabled: true,
+        compression: true,
+        encryption: false,
+        syncOnStartup: true,
+        dbName: 'bicycleManagementOfflineDB',
+        dbVersion: 1
+    },
+    ui: {
+        theme: 'light',
+        animations: true,
+        notificationDuration: 3000,
+        dateFormat: 'DD/MM/YYYY HH:mm',
+        charts: {
+            colors: ['#3f51b5', '#4caf50', '#ff9800', '#f44336'],
+            animation: true
+        }
+    }
+};
+
+// Initialize Firebase
+firebase.initializeApp(CONFIG.firebase);
+const db = firebase.firestore();
+
+// Initialize tooltips and other UI components
+document.addEventListener('DOMContentLoaded', () => {
+    // Setup any third-party components here
+});
+// js/offline-manager.js
+class OfflineManager {
+    constructor() {
+        this.db = null;
+        this.syncQueue = new Set();
+        this.isInitialized = false;
+        this.initializeDb();
+    }
+
+    async initializeDb() {
+        try {
+            this.db = await this.openDatabase();
+            this.isInitialized = true;
+            await this.setupSyncListener();
+            console.log('Offline database initialized');
+        } catch (error) {
+            console.error('Failed to initialize offline database:', error);
+            throw error;
+        }
+    }
+
+    openDatabase() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(CONFIG.offline.dbName, CONFIG.offline.dbVersion);
+
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                
+                // Create object stores
+                const stores = ['rentals', 'maintenance', 'bicycles', 'syncQueue'];
+                stores.forEach(storeName => {
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        const store = db.createObjectStore(storeName, { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('syncStatus', 'syncStatus');
+                        store.createIndex('timestamp', 'timestamp');
+                    }
+                });
+            };
+        });
+    }
+
+    async saveOfflineData(collection, data) {
+        if (!this.isInitialized) {
+            throw new Error('Offline database not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(collection, 'readwrite');
+            const store = transaction.objectStore(collection);
+
+            // Add metadata
+            data.syncStatus = 'pending';
+            data.timestamp = new Date().toISOString();
+            data.offlineId = `offline_${Date.now()}`;
+
+            const request = store.add(data);
+
+            request.onsuccess = () => {
+                this.addToSyncQueue(collection, data);
+                resolve(data.offlineId);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    addToSyncQueue(collection, data) {
+        const syncItem = {
+            collection,
+            data,
+            timestamp: new Date().toISOString(),
+            attempts: 0
+        };
+
+        this.syncQueue.add(syncItem);
+        this.attemptSync();
+    }
+
+    async setupSyncListener() {
+        window.addEventListener('online', () => this.attemptSync());
+        setInterval(() => this.attemptSync(), CONFIG.app.syncInterval);
+    }
+
+    async attemptSync() {
+        if (!navigator.onLine || this.syncQueue.size === 0) return;
+
+        for (const item of this.syncQueue) {
+            try {
+                await this.syncItem(item);
+                this.syncQueue.delete(item);
+            } catch (error) {
+                console.error('Sync failed for item:', error);
+                item.attempts++;
+                
+                if (item.attempts >= 3) {
+                    this.syncQueue.delete(item);
+                    this.notifyFailedSync(item);
+                }
+            }
+        }
+    }
+
+    async syncItem(item) {
+        const { collection, data } = item;
+        
+        const docRef = await firebase.firestore().collection(collection).add({
+            ...data,
+            synced: true,
+            syncedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Update local status
+        await this.updateLocalStatus(collection, data.offlineId, 'synced', docRef.id);
+        return docRef.id;
+    }
+
+    async updateLocalStatus(collection, offlineId, status, onlineId = null) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(collection, 'readwrite');
+            const store = transaction.objectStore(collection);
+            
+            const request = store.get(offlineId);
+            request.onsuccess = () => {
+                const data = request.result;
+                if (data) {
+                    data.syncStatus = status;
+                    if (onlineId) data.onlineId = onlineId;
+                    store.put(data);
+                    resolve();
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    notifyFailedSync(item) {
+        if (window.app && window.app.uiManager) {
+            window.app.uiManager.showNotification(
+                `Failed to sync ${item.collection} data after 3 attempts`,
+                'error'
+            );
+        }
+    }
+
+    async getOfflineData(collection, query = {}) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(collection, 'readonly');
+            const store = transaction.objectStore(collection);
+            
+            const request = store.getAll();
+            request.onsuccess = () => {
+                let results = request.result;
+                
+                // Apply filters if any
+                if (query.filters) {
+                    results = results.filter(item => 
+                        Object.entries(query.filters).every(([key, value]) => 
+                            item[key] === value
+                        )
+                    );
+                }
+
+                resolve(results);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+// js/tabs/issue-tab.js
+class IssueTab {
+    constructor() {
+        this.initializeTab();
+        this.setupEventListeners();
+    }
+
+    initializeTab() {
+        const tabContent = `
+            <div class="card">
+                <h3 class="card-title">Issue Bicycle</h3>
+                <form id="issueForm" class="form-container">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="roomNumber">Room Number *</label>
+                            <input type="text" id="roomNumber" required 
+                                   pattern="[0-9]+" placeholder="Enter room number">
+                        </div>
+                        <div class="form-group">
+                            <label for="guestName">Guest Name *</label>
+                            <input type="text" id="guestName" required 
+                                   placeholder="Enter guest name">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bicycleType">Bicycle Type *</label>
+                            <select id="bicycleType" required>
+                                <option value="">Select Type</option>
+                                <option value="regular">Regular Bicycle</option>
+                                <option value="kids">Kids Bicycle</option>
+                                <option value="libero">Libero Bicycle</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bicycleNumber">Bicycle Number *</label>
+                            <select id="bicycleNumber" required>
+                                <option value="">Select Number</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="issueDate">Issue Date *</label>
+                            <input type="datetime-local" id="issueDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="returnDate">Return Date *</label>
+                            <input type="datetime-local" id="returnDate" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Notes</label>
+                        <textarea id="notes" rows="3" 
+                                  placeholder="Any special requirements or notes"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Issue Bicycle</button>
+                        <button type="reset" class="btn btn-secondary">Reset</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card mt-4">
+                <h3 class="card-title">Recent Issues</h3>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Room</th>
+                                <th>Guest</th>
+                                <th>Bicycle</th>
+                                <th>Issue Date</th>
+                                <th>Return Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentIssuesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('issueTab').innerHTML = tabContent;
+        this.setDefaultDates();
+    }
+
+    setupEventListeners() {
+        document.getElementById('issueForm').addEventListener('submit', 
+            this.handleSubmit.bind(this)
+        );
+
+        document.getElementById('bicycleType').addEventListener('change',
+            this.updateBicycleNumbers.bind(this)
+        );
+
+        document.getElementById('returnDate').addEventListener('change',
+            this.validateReturnDate.bind(this)
+        );
+    }
+
+    setDefaultDates() {
+        const now = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        document.getElementById('issueDate').value = this.formatDateTime(now);
+        document.getElementById('returnDate').value = this.formatDateTime(tomorrow);
+    }
+
+    formatDateTime(date) {
+        return new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+            .toISOString()
+            .slice(0, 16);
+    }
+
+    async handleSubmit(event) {
+        event.preventDefault();
+        
+        try {
+            const formData = this.getFormData();
+            if (!this.validateFormData(formData)) return;
+
+            const rentalId = await window.app.dbManager.addRental(formData);
+            
+            window.app.uiManager.showNotification(
+                'Bicycle issued successfully', 
+                'success'
+            );
+            
+            this.resetForm();
+            this.loadRecentIssues();
+            
+        } catch (error) {
+            console.error('Error issuing bicycle:', error);
+            window.app.uiManager.showNotification(
+                'Error issuing bicycle. Please try again.',
+                'error'
+            );
+        }
+    }
+
+    getFormData() {
+        return {
+            roomNumber: document.getElementById('roomNumber').value,
+            guestName: document.getElementById('guestName').value,
+            bicycleType: document.getElementById('bicycleType').value,
+            bicycleNumber: document.getElementById('bicycleNumber').value,
+            issueDate: new Date(document.getElementById('issueDate').value),
+            returnDate: new Date(document.getElementById('returnDate').value),
+            notes: document.getElementById('notes').value,
+            status: 'Active'
+        };
+    }
+
+    validateFormData(data) {
+        if (data.returnDate < data.issueDate) {
+            window.app.uiManager.showNotification(
+                'Return date must be after issue date',
+                'error'
+            );
+            return false;
+        }
+        return true;
+    }
+
+    async updateBicycleNumbers() {
+        const typeSelect = document.getElementById('bicycleType');
+        const numberSelect = document.getElementById('bicycleNumber');
+        const selectedType = typeSelect.value;
+
+        numberSelect.innerHTML = '<option value="">Select Number</option>';
+
+        if (!selectedType) return;
+
+        try {
+            const availableBikes = await window.app.dbManager.getAvailableBicycles(selectedType);
+            availableBikes.forEach(bike => {
+                const option = document.createElement('option');
+                option.value = bike.number;
+                option.textContent = bike.number;
+                numberSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading bicycle numbers:', error);
+            window.app.uiManager.showNotification(
+                'Error loading bicycle numbers',
+                'error'
+            );
+        }
+    }
+
+    resetForm() {
+        document.getElementById('issueForm').reset();
+        this.setDefaultDates();
+    }
+
+    async loadRecentIssues() {
+        try {
+            const recentIssues = await window.app.dbManager.getRecentIssues();
+            this.updateRecentIssuesTable(recentIssues);
+        } catch (error) {
+            console.error('Error loading recent issues:', error);
+            window.app.uiManager.showNotification(
+                'Error loading recent issues',
+                'error'
+            );
+        }
+    }
+
+    updateRecentIssuesTable(issues) {
+        const tbody = document.getElementById('recentIssuesTable');
+        tbody.innerHTML = '';
+          // js/tabs/issue-tab.js (continued)
+    updateRecentIssuesTable(issues) {
+        const tbody = document.getElementById('recentIssuesTable');
+        tbody.innerHTML = '';
+
+        issues.forEach(issue => {
+            const row = document.createElement('tr');
+            row.className = `status-${issue.status.toLowerCase()}`;
+            
+            row.innerHTML = `
+                <td>${issue.roomNumber}</td>
+                <td>${issue.guestName}</td>
+                <td>${issue.bicycleType} - ${issue.bicycleNumber}</td>
+                <td>${this.formatDate(issue.issueDate)}</td>
+                <td>${this.formatDate(issue.returnDate)}</td>
+                <td>
+                    <span class="status-badge ${issue.status.toLowerCase()}">
+                        ${issue.status}
+                    </span>
+                </td>
+                <td class="action-buttons">
+                    ${this.getActionButtons(issue)}
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        if (issues.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center">No recent issues found</td>
+                </tr>
+            `;
+        }
+    }
+
+    getActionButtons(issue) {
+        if (issue.status === 'Active') {
+            return `
+                <button class="btn btn-sm btn-success" 
+                        onclick="app.tabs.issue.handleReturn('${issue.id}')">
+                    Return
+                </button>
+                <button class="btn btn-sm btn-warning"
+                        onclick="app.tabs.issue.handleExtend('${issue.id}')">
+                    Extend
+                </button>
+                <button class="btn btn-sm btn-info"
+                        onclick="app.tabs.issue.viewDetails('${issue.id}')">
+                    Details
+                </button>
+            `;
+        }
+        return `
+            <button class="btn btn-sm btn-info"
+                    onclick="app.tabs.issue.viewDetails('${issue.id}')">
+                Details
+            </button>
+        `;
+    }
+
+    async handleReturn(issueId) {
+        try {
+            const confirmed = await this.showConfirmDialog(
+                'Return Bicycle',
+                'Are you sure you want to return this bicycle?'
+            );
+
+            if (!confirmed) return;
+
+            await window.app.dbManager.returnRental(issueId);
+            window.app.uiManager.showNotification('Bicycle returned successfully', 'success');
+            this.loadRecentIssues();
+        } catch (error) {
+            console.error('Error returning bicycle:', error);
+            window.app.uiManager.showNotification('Error returning bicycle', 'error');
+        }
+    }
+
+    async handleExtend(issueId) {
+        try {
+            const rental = await window.app.dbManager.getRental(issueId);
+            const currentReturnDate = new Date(rental.returnDate);
+
+            const content = `
+                <form id="extendForm" class="form-container">
+                    <div class="form-group">
+                        <label>Current Return Date</label>
+                        <input type="text" disabled 
+                               value="${this.formatDate(currentReturnDate)}">
+                    </div>
+                    <div class="form-group">
+                        <label>New Return Date *</label>
+                        <input type="datetime-local" id="newReturnDate" required
+                               min="${this.formatDateTime(new Date())}">
+                    </div>
+                    <div class="form-group">
+                        <label>Extension Reason</label>
+                        <textarea id="extensionReason" rows="2"></textarea>
+                    </div>
+                </form>
+            `;
+
+            const result = await this.showFormDialog('Extend Rental', content);
+            if (!result) return;
+
+            const newReturnDate = new Date(document.getElementById('newReturnDate').value);
+            const extensionReason = document.getElementById('extensionReason').value;
+
+            await window.app.dbManager.extendRental(issueId, {
+                returnDate: newReturnDate,
+                extensionReason,
+                extensionDate: new Date()
+            });
+
+            window.app.uiManager.showNotification('Rental extended successfully', 'success');
+            this.loadRecentIssues();
+        } catch (error) {
+            console.error('Error extending rental:', error);
+            window.app.uiManager.showNotification('Error extending rental', 'error');
+        }
+    }
+
+    async viewDetails(issueId) {
+        try {
+            const rental = await window.app.dbManager.getRental(issueId);
+            const history = await window.app.dbManager.getRentalHistory(issueId);
+
+            const content = `
+                <div class="rental-details">
+                    <div class="detail-section">
+                        <h4>Rental Information</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label>Room Number:</label>
+                                <span>${rental.roomNumber}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Guest Name:</label>
+                                <span>${rental.guestName}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Bicycle:</label>
+                                <span>${rental.bicycleType} - ${rental.bicycleNumber}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Issue Date:</label>
+                                <span>${this.formatDate(rental.issueDate)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Return Date:</label>
+                                <span>${this.formatDate(rental.returnDate)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <label>Status:</label>
+                                <span class="status-badge ${rental.status.toLowerCase()}">
+                                    ${rental.status}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h4>Rental History</h4>
+                        <div class="history-timeline">
+                            ${this.createHistoryTimeline(history)}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.app.uiManager.showModal('Rental Details', content);
+        } catch (error) {
+            console.error('Error viewing rental details:', error);
+            window.app.uiManager.showNotification('Error loading rental details', 'error');
+        }
+    }
+
+    createHistoryTimeline(history) {
+        return history.map(entry => `
+            <div class="timeline-item">
+                <div class="timeline-date">
+                    ${this.formatDate(entry.timestamp)}
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-title">${entry.action}</div>
+                    <div class="timeline-details">${entry.details || ''}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    showConfirmDialog(title, message) {
+        return new Promise(resolve => {
+            const content = `
+                <div class="confirm-dialog">
+                    <p>${message}</p>
+                    <div class="dialog-actions">
+                        <button class="btn btn-secondary" onclick="resolveDialog(false)">
+                            Cancel
+                        </button>
+                        <button class="btn btn-primary" onclick="resolveDialog(true)">
+                            Confirm
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            window.resolveDialog = (result) => {
+                window.app.uiManager.closeModal();
+                resolve(result);
+                delete window.resolveDialog;
+            };
+
+            window.app.uiManager.showModal(title, content);
+        });
+    }
+
+    showFormDialog(title, content) {
+        return new Promise(resolve => {
+            const wrappedContent = `
+                <div class="dialog-content">
+                    ${content}
+                    <div class="dialog-actions">
+                        <button class="btn btn-secondary" onclick="resolveFormDialog(false)">
+                            Cancel
+                        </button>
+                        <button class="btn btn-primary" onclick="resolveFormDialog(true)">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            window.resolveFormDialog = (result) => {
+                if (!result || this.validateForm('extendForm')) {
+                    window.app.uiManager.closeModal();
+                    resolve(result);
+                    delete window.resolveFormDialog;
+                }
+            };
+
+            window.app.uiManager.showModal(title, wrappedContent);
+        });
+    }
+
+    validateForm(formId) {
+        const form = document.getElementById(formId);
+        return form ? form.checkValidity() : true;
+    }
+
+    formatDate(date) {
+        return new Date(date).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    formatDateTime(date) {
+        return new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+            .toISOString()
+            .slice(0, 16);
+    }
+}
+   // js/tabs/return-tab.js
+class ReturnTab {
+    constructor() {
+        this.initializeTab();
+        this.setupSearchListeners();
+        this.loadActiveRentals();
+    }
+
+    initializeTab() {
+        const tabContent = `
+            <div class="card">
+                <h3 class="card-title">Search Active Rentals</h3>
+                <div class="search-filters">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Room Number</label>
+                            <input type="text" id="searchRoom" placeholder="Enter room number">
+                        </div>
+                        <div class="form-group">
+                            <label>Bicycle Number</label>
+                            <input type="text" id="searchBicycle" placeholder="Enter bicycle number">
+                        </div>
+                        <div class="form-group">
+                            <label>Guest Name</label>
+                            <input type="text" id="searchGuest" placeholder="Enter guest name">
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-primary" onclick="app.tabs.return.searchRentals()">
+                                Search
+                            </button>
+                            <button class="btn btn-secondary" onclick="app.tabs.return.resetSearch()">
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <h3 class="card-title">Active Rentals</h3>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Room</th>
+                                <th>Guest</th>
+                                <th>Bicycle</th>
+                                <th>Issue Date</th>
+                                <th>Expected Return</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeRentalsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Return Modal -->
+            <div id="returnModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h3>Return Bicycle</h3>
+                    <form id="returnForm">
+                        <input type="hidden" id="returnRentalId">
+                        <div class="form-group">
+                            <label>Return Condition</label>
+                            <select id="returnCondition" required>
+                                <option value="good">Good - No Issues</option>
+                                <option value="minor">Minor Issues</option>
+                                <option value="major">Major Issues</option>
+                                <option value="damaged">Damaged</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea id="returnNotes" rows="3" 
+                                placeholder="Describe any issues or damage..."></textarea>
+                        </div>
+                        <div class="charge-section" style="display: none;">
+                            <div class="form-group">
+                                <label>Additional Charges</label>
+                                <input type="number" id="additionalCharges" min="0" step="0.01" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Charge Reason</label>
+                                <input type="text" id="chargeReason" placeholder="Reason for additional charges">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Confirm Return</button>
+                            <button type="button" class="btn btn-secondary" onclick="app.tabs.return.closeReturnModal()">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('returnTab').innerHTML = tabContent;
+    }
+
+    setupSearchListeners() {
+        const searchInputs = ['searchRoom', 'searchBicycle', 'searchGuest'];
+        searchInputs.forEach(id => {
+            document.getElementById(id).addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    this.searchRentals();
+                }
+            });
+        });
+
+        document.getElementById('returnCondition')?.addEventListener('change', (e) => {
+            const chargeSection = document.querySelector('.charge-section');
+            if (chargeSection) {
+                chargeSection.style.display = 
+                    ['major', 'damaged'].includes(e.target.value) ? 'block' : 'none';
+            }
+        });
+
+        document.getElementById('returnForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleReturn();
+        });
+    }
+
+    async searchRentals() {
+        const filters = {
+            roomNumber: document.getElementById('searchRoom').value,
+            bicycleNumber: document.getElementById('searchBicycle').value,
+            guestName: document.getElementById('searchGuest').value
+        };
+
+        try {
+            const rentals = await window.app.dbManager.searchActiveRentals(filters);
+            this.updateRentalsTable(rentals);
+        } catch (error) {
+            console.error('Error searching rentals:', error);
+            window.app.uiManager.showNotification('Error searching rentals', 'error');
+        }
+    }
+
+    resetSearch() {
+        ['searchRoom', 'searchBicycle', 'searchGuest'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+        this.loadActiveRentals();
+    }
+
+    async loadActiveRentals() {
+        try {
+            const rentals = await window.app.dbManager.getActiveRentals();
+            this.updateRentalsTable(rentals);
+        } catch (error) {
+            console.error('Error loading active rentals:', error);
+            window.app.uiManager.showNotification('Error loading active rentals', 'error');
+        }
+    }
+
+    updateRentalsTable(rentals) {
+        const tbody = document.getElementById('activeRentalsTable');
+        tbody.innerHTML = '';
+
+        rentals.forEach(rental => {
+            const isOverdue = new Date(rental.returnDate) < new Date();
+            const row = document.createElement('tr');
+            row.className = isOverdue ? 'overdue' : '';
+            
+            row.innerHTML = `
+                <td>${rental.roomNumber}</td>
+                <td>${rental.guestName}</td>
+                <td>${rental.bicycleType} - ${rental.bicycleNumber}</td>
+                <td>${this.formatDateTime(rental.issueDate)}</td>
+                <td class="${isOverdue ? 'text-danger' : ''}">
+                    ${this.formatDateTime(rental.returnDate)}
+                    ${isOverdue ? '<span class="badge badge-danger">Overdue</span>' : ''}
+                </td>
+                <td>
+                    <span class="status-badge ${rental.status.toLowerCase()}">
+                        ${rental.status}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-success" 
+                            onclick="app.tabs.return.showReturnModal('${rental.id}')">
+                        Return
+                    </button>
+                    <button class="btn btn-sm btn-info"
+                            onclick="app.tabs.return.viewDetails('${rental.id}')">
+                        Details
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        if (rentals.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center">No active rentals found</td>
+                </tr>
+            `;
+        }
+    }
+
+    async showReturnModal(rentalId) {
+        const rental = await window.app.dbManager.getRental(rentalId);
+        document.getElementById('returnRentalId').value = rentalId;
+        document.getElementById('returnCondition').value = 'good';
+        document.getElementById('returnNotes').value = '';
+        document.getElementById('additionalCharges').value = '0';
+        document.getElementById('chargeReason').value = '';
+        document.querySelector('.charge-section').style.display = 'none';
+        document.getElementById('returnModal').style.display = 'block';
+    }
+
+    closeReturnModal() {
+        document.getElementById('returnModal').style.display = 'none';
+    }
+
+    async handleReturn() {
+        const rentalId = document.getElementById('returnRentalId').value;
+        const condition = document.getElementById('returnCondition').value;
+        const notes = document.getElementById('returnNotes').value;
+        const charges = parseFloat(document.getElementById('additionalCharges').value) || 0;
+        const chargeReason = document.getElementById('chargeReason').value;
+
+        try {
+            await window.app.dbManager.returnRental(rentalId, {
+                condition,
+                notes,
+                charges,
+                chargeReason,
+                returnDate: new Date()
+            });
+
+            window.app.uiManager.showNotification('Bicycle returned successfully', 'success');
+            this.closeReturnModal();
+            this.loadActiveRentals();
+
+            // Create maintenance record if needed
+            if (['major', 'damaged'].includes(condition)) {
+                await this.createMaintenanceRecord(rentalId, condition, notes);
+            }
+        } catch (error) {
+            console.error('Error returning bicycle:', error);
+            window.app.uiManager.showNotification('Error returning bicycle', 'error');
+        }
+    }
+
+    async createMaintenanceRecord(rentalId, condition, notes) {
+        try {
+            const rental = await window.app.dbManager.getRental(rentalId);
+            await window.app.dbManager.addMaintenanceRecord({
+                bicycleNumber: rental.bicycleNumber,
+                bicycleType: rental.bicycleType,
+                issueType: condition === 'damaged' ? 'damage' : 'repair',
+                priority: condition === 'damaged' ? 'high' : 'medium',
+                description: `Issue from return: ${notes}`,
+                status: 'pending'
+            });
+        } catch (error) {
+            console.error('Error creating maintenance record:', error);
+            window.app.uiManager.showNotification(
+                'Warning: Could not create maintenance record',
+                'warning'
+            );
+        }
+    }
+
+    formatDateTime(date) {
+        return new Date(date).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+}
+// js/tabs/maintenance-tab.js
+class MaintenanceTab {
+    constructor() {
+        this.initializeTab();
+        this.setupEventListeners();
+        this.loadMaintenanceStats();
+        this.loadMaintenanceRecords();
+    }
+
+    initializeTab() {
+        const tabContent = `
+            <!-- Maintenance Stats Section -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon pending">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Pending</h3>
+                        <p id="pendingCount">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon progress">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>In Progress</h3>
+                        <p id="inProgressCount">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon completed">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Completed Today</h3>
+                        <p id="completedCount">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon high-priority">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>High Priority</h3>
+                        <p id="highPriorityCount">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Form -->
+            <div class="card">
+                <h3 class="card-title">Report Maintenance Issue</h3>
+                <form id="maintenanceForm" class="form-container">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Bicycle Type *</label>
+                            <select id="maintBicycleType" required>
+                                <option value="">Select Type</option>
+                                <option value="regular">Regular Bicycle</option>
+                                <option value="kids">Kids Bicycle</option>
+                                <option value="libero">Libero Bicycle</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Bicycle Number *</label>
+                            <select id="maintBicycleNumber" required>
+                                <option value="">Select Number</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Issue Type *</label>
+                            <select id="issueType" required>
+                                <option value="">Select Issue Type</option>
+                                <option value="mechanical">Mechanical Issue</option>
+                                <option value="electrical">Electrical Issue</option>
+                                <option value="frame">Frame/Structure Damage</option>
+                                <option value="tire">Tire/Wheel Issue</option>
+                                <option value="brake">Brake System</option>
+                                <option value="chain">Chain/Gear Issue</option>
+                                <option value="seat">Seat/Handle Issue</option>
+                                <option value="inspection">Regular Inspection</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Priority *</label>
+                            <select id="priority" required>
+                                <option value="high">High Priority</option>
+                                <option value="medium">Medium Priority</option>
+                                <option value="low">Low Priority</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Issue Description *</label>
+                        <textarea id="issueDescription" rows="3" required 
+                                  placeholder="Detailed description of the issue..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Estimated Repair Time (days)</label>
+                            <input type="number" id="estimatedDays" min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Assigned To</label>
+                            <select id="assignedTo">
+                                <option value="">Select Staff</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Submit Maintenance Request</button>
+                        <button type="reset" class="btn btn-secondary">Reset</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Maintenance Records -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">Maintenance Records</h3>
+                    <div class="filter-controls">
+                        <select id="statusFilter" onchange="app.tabs.maintenance.filterRecords()">
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <select id="priorityFilter" onchange="app.tabs.maintenance.filterRecords()">
+                            <option value="all">All Priorities</option>
+                            <option value="high">High Priority</option>
+                            <option value="medium">Medium Priority</option>
+                            <option value="low">Low Priority</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="app.tabs.maintenance.exportMaintenanceReport()">
+                            <i class="fas fa-download"></i> Export Report
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Bicycle</th>
+                                <th>Issue Type</th>
+                                <th>Description</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Assigned To</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="maintenanceTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('maintenanceTab').innerHTML = tabContent;
+        this.loadMaintenanceStaff();
+    }
+
+    setupEventListeners() {
+        document.getElementById('maintenanceForm').addEventListener('submit', 
+            this.handleSubmit.bind(this)
+        );
+
+        document.getElementById('maintBicycleType').addEventListener('change',
+            this.updateBicycleNumbers.bind(this)
+        );
+
+        document.getElementById('issueType').addEventListener('change', (e) => {
+            const priority = document.getElementById('priority');
+            if (e.target.value === 'inspection') {
+                priority.value = 'low';
+            }
+        });
+    }
+
+    async loadMaintenanceStaff() {
+        try {
+            const staff = await window.app.dbManager.getMaintenanceStaff();
+            const select = document.getElementById('assignedTo');
+            
+            staff.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member.id;
+                option.textContent = member.name;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading maintenance staff:', error);
+        }
+    }
+
+    async handleSubmit(event) {
+        event.preventDefault();
+        
+        try {
+            const formData = this.getFormData();
+            await window.app.dbManager.addMaintenanceRecord(formData);
+            
+            window.app.uiManager.showNotification(
+                'Maintenance request submitted successfully', 
+                'success'
+            );
+            
+            event.target.reset();
+            this.loadMaintenanceRecords();
+            this.loadMaintenanceStats();
+        } catch (error) {
+            console.error('Error submitting maintenance request:', error);
+            window.app.uiManager.showNotification(
+                'Error submitting maintenance request',
+                'error'
+            );
+        }
+    }
+
+    getFormData() {
+        return {
+            bicycleType: document.getElementById('maintBicycleType').value,
+            bicycleNumber: document.getElementById('maintBicycleNumber').value,
+            issueType: document.getElementById('issueType').value,
+            priority: document.getElementById('priority').value,
+            description: document.getElementById('issueDescription').value,
+            estimatedDays: parseInt(document.getElementById('estimatedDays').value),
+            assignedTo: document.getElementById('assignedTo').value,
+            status: 'pending',
+            createdAt: new Date(),
+            history: [{
+                status: 'pending',
+                timestamp: new Date(),
+                notes: 'Maintenance request created'
+            }]
+        };
+    }
+
+    async loadMaintenanceStats() {
+        try {
+            const stats = await window.app.dbManager.getMaintenanceStats();
+            
+            document.getElementById('pendingCount').textContent = stats.pending;
+            document.getElementById('inProgressCount').textContent = stats.inProgress;
+            document.getElementById('completedCount').textContent = stats.completedToday;
+            document.getElementById('highPriorityCount').textContent = stats.highPriority;
+        } catch (error) {
+            console.error('Error loading maintenance stats:', error);
+        }
+    }
+          // js/tabs/maintenance-tab.js (continued)
+    async loadMaintenanceRecords() {
+        const statusFilter = document.getElementById('statusFilter').value;
+        const priorityFilter = document.getElementById('priorityFilter').value;
+
+        try {
+            const records = await window.app.dbManager.getMaintenanceRecords({
+                status: statusFilter !== 'all' ? statusFilter : null,
+                priority: priorityFilter !== 'all' ? priorityFilter : null
+            });
+            this.updateMaintenanceTable(records);
+        } catch (error) {
+            console.error('Error loading maintenance records:', error);
+            window.app.uiManager.showNotification('Error loading maintenance records', 'error');
+        }
+    }
+
+    updateMaintenanceTable(records) {
+        const tbody = document.getElementById('maintenanceTable');
+        tbody.innerHTML = '';
+
+        records.forEach(record => {
+            const row = document.createElement('tr');
+            row.className = `priority-${record.priority}`;
+            
+            row.innerHTML = `
+                <td>${record.bicycleType} - ${record.bicycleNumber}</td>
+                <td>${this.formatIssueType(record.issueType)}</td>
+                <td>${record.description}</td>
+                <td>
+                    <span class="priority-badge ${record.priority}">
+                        ${record.priority.toUpperCase()}
+                    </span>
+                </td>
+                <td>
+                    <span class="status-badge ${record.status}">
+                        ${this.formatStatus(record.status)}
+                    </span>
+                </td>
+                <td>${record.assignedTo ? record.assignedToName : 'Unassigned'}</td>
+                <td>${this.formatDate(record.createdAt)}</td>
+                <td>${this.getActionButtons(record)}</td>
+            `;
+
+            tbody.appendChild(row);
+        });
+
+        if (records.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center">No maintenance records found</td>
+                </tr>
+            `;
+        }
+    }
+
+    getActionButtons(record) {
+        if (record.status === 'completed') {
+            return `
+                <button class="btn btn-sm btn-info" 
+                        onclick="app.tabs.maintenance.viewHistory('${record.id}')">
+                    History
+                </button>
+            `;
+        }
+
+        return `
+            <button class="btn btn-sm btn-success" 
+                    onclick="app.tabs.maintenance.updateStatus('${record.id}', 'completed')">
+                Complete
+            </button>
+            <button class="btn btn-sm btn-primary" 
+                    onclick="app.tabs.maintenance.updateStatus('${record.id}', 'in-progress')">
+                Start
+            </button>
+            <button class="btn btn-sm btn-info" 
+                    onclick="app.tabs.maintenance.viewHistory('${record.id}')">
+                History
+            </button>
+        `;
+    }
+
+    async updateStatus(recordId, newStatus) {
+        try {
+            const notes = await this.promptForNotes(newStatus);
+            if (notes === null) return; // User cancelled
+
+            await window.app.dbManager.updateMaintenanceStatus(recordId, newStatus, notes);
+            window.app.uiManager.showNotification('Status updated successfully', 'success');
+            this.loadMaintenanceRecords();
+            this.loadMaintenanceStats();
+        } catch (error) {
+            console.error('Error updating maintenance status:', error);
+            window.app.uiManager.showNotification('Error updating status', 'error');
+        }
+    }
+
+    async promptForNotes(status) {
+        return new Promise(resolve => {
+            const content = `
+                <div class="form-group">
+                    <label>Update Notes</label>
+                    <textarea id="statusNotes" rows="3" class="form-control" 
+                              placeholder="Enter notes about this update..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button onclick="resolveNotes(false)" class="btn btn-secondary">Cancel</button>
+                    <button onclick="resolveNotes(true)" class="btn btn-primary">Update</button>
+                </div>
+            `;
+
+            window.resolveNotes = (confirmed) => {
+                const notes = confirmed ? document.getElementById('statusNotes').value : null;
+                window.app.uiManager.closeModal();
+                resolve(notes);
+                delete window.resolveNotes;
+            };
+
+            window.app.uiManager.showModal(
+                `Update Status to ${this.formatStatus(status)}`, 
+                content
+            );
+        });
+    }
+
+    async viewHistory(recordId) {
+        try {
+            const record = await window.app.dbManager.getMaintenanceRecord(recordId);
+            const history = record.history || [];
+
+            const content = `
+                <div class="maintenance-history">
+                    <div class="record-details">
+                        <h4>Bicycle: ${record.bicycleType} - ${record.bicycleNumber}</h4>
+                        <p>Issue: ${this.formatIssueType(record.issueType)}</p>
+                        <p>Priority: ${record.priority.toUpperCase()}</p>
+                    </div>
+                    <div class="history-timeline">
+                        ${history.map(entry => `
+                            <div class="timeline-item">
+                                <div class="timeline-badge ${entry.status}">
+                                    <i class="fas ${this.getStatusIcon(entry.status)}"></i>
+                                </div>
+                                <div class="timeline-content">
+                                    <div class="timeline-header">
+                                        <span class="status-badge ${entry.status}">
+                                            ${this.formatStatus(entry.status)}
+                                        </span>
+                                        <span class="timeline-date">
+                                            ${this.formatDate(entry.timestamp)}
+                                        </span>
+                                    </div>
+                                    <div class="timeline-body">
+                                        ${entry.notes || 'No notes provided'}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            window.app.uiManager.showModal('Maintenance History', content);
+        } catch (error) {
+            console.error('Error loading maintenance history:', error);
+            window.app.uiManager.showNotification('Error loading history', 'error');
+        }
+    }
+
+    async exportMaintenanceReport() {
+        try {
+            const records = await window.app.dbManager.getMaintenanceRecords({
+                status: document.getElementById('statusFilter').value,
+                priority: document.getElementById('priorityFilter').value
+            });
+
+            const csv = this.generateCSV(records);
+            this.downloadCSV(csv, `maintenance_report_${new Date().toISOString()}.csv`);
+        } catch (error) {
+            console.error('Error exporting maintenance report:', error);
+            window.app.uiManager.showNotification('Error exporting report', 'error');
+        }
+    }
+
+    generateCSV(records) {
+        const headers = [
+            'Bicycle',
+            'Issue Type',
+            'Description',
+            'Priority',
+            'Status',
+            'Assigned To',
+            'Created Date',
+            'Last Updated'
+        ];
+
+        const rows = records.map(record => [
+            `${record.bicycleType}-${record.bicycleNumber}`,
+            this.formatIssueType(record.issueType),
+            record.description,
+            record.priority,
+            this.formatStatus(record.status),
+            record.assignedToName || 'Unassigned',
+            this.formatDate(record.createdAt),
+            this.formatDate(record.updatedAt)
+        ]);
+
+        return [headers, ...rows]
+            .map(row => row.map(cell => `"${cell}"`).join(','))
+            .join('\n');
+    }
+
+    downloadCSV(csv, filename) {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (navigator.msSaveBlob) {
+            navigator.msSaveBlob(blob, filename);
+            return;
+        }
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    formatIssueType(type) {
+        return type.split('_').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+    }
+
+    formatStatus(status) {
+        const statusMap = {
+            'pending': 'Pending',
+            'in-progress': 'In Progress',
+            'completed': 'Completed'
+        };
+        return statusMap[status] || status;
+    }
+
+    getStatusIcon(status) {
+        const iconMap = {
+            'pending': 'fa-clock',
+            'in-progress': 'fa-tools',
+            'completed': 'fa-check-circle'
+        };
+        return iconMap[status] || 'fa-info-circle';
+    }
+
+    formatDate(date) {
+        return new Date(date).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+}
+ // js/tabs/reports-tab.js
+class ReportsTab {
+    constructor() {
+        this.charts = {};
+        this.currentReport = null;
+        this.initializeTab();
+        this.setupEventListeners();
+    }
+
+    initializeTab() {
+        const tabContent = `
+            <div class="reports-container">
+                <!-- Report Types Section -->
+                <div class="report-types-grid">
+                    <div class="report-card" onclick="app.tabs.reports.generateReport('daily')">
+                        <div class="report-icon">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                        <div class="report-info">
+                            <h3>Daily Report</h3>
+                            <p>Summary of today's activities</p>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="app.tabs.reports.generateReport('performance')">
+                        <div class="report-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="report-info">
+                            <h3>Performance Report</h3>
+                            <p>Usage trends and analytics</p>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="app.tabs.reports.generateReport('maintenance')">
+                        <div class="report-icon">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <div class="report-info">
+                            <h3>Maintenance Report</h3>
+                            <p>Maintenance history and status</p>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="app.tabs.reports.generateReport('inventory')">
+                        <div class="report-icon">
+                            <i class="fas fa-bicycle"></i>
+                        </div>
+                        <div class="report-info">
+                            <h3>Inventory Report</h3>
+                            <p>Bicycle status and availability</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Report Section -->
+                <div class="card mt-4">
+                    <h3 class="card-title">Custom Report</h3>
+                    <form id="customReportForm" class="form-container">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Report Type</label>
+                                <select id="customReportType" required>
+                                    <option value="rentals">Rental Report</option>
+                                    <option value="maintenance">Maintenance Report</option>
+                                    <option value="inventory">Inventory Report</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Date Range</label>
+                                <select id="dateRange" onchange="app.tabs.reports.handleDateRangeChange()">
+                                    <option value="today">Today</option>
+                                    <option value="yesterday">Yesterday</option>
+                                    <option value="lastWeek">Last 7 Days</option>
+                                    <option value="lastMonth">Last 30 Days</option>
+                                    <option value="custom">Custom Range</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="customDateRange" class="form-row" style="display: none;">
+                            <div class="form-group">
+                                <label>Start Date</label>
+                                <input type="date" id="startDate">
+                            </div>
+                            <div class="form-group">
+                                <label>End Date</label>
+                                <input type="date" id="endDate">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Generate Report</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Report Display Section -->
+                <div id="reportDisplay" class="card mt-4" style="display: none;">
+                    <div class="card-header">
+                        <h3 id="reportTitle" class="card-title"></h3>
+                        <div class="report-actions">
+                            <button class="btn btn-secondary" onclick="app.tabs.reports.printReport()">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+                            <button class="btn btn-primary" onclick="app.tabs.reports.exportReport()">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="reportContent" class="report-content"></div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('reportsTab').innerHTML = tabContent;
+        this.initializeCharts();
+    }
+
+    setupEventListeners() {
+        document.getElementById('customReportForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.generateCustomReport();
+        });
+    }
+
+    async initializeCharts() {
+        this.charts.rentals = new Chart(
+            document.createElement('canvas'),
+            {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Daily Rentals',
+                        data: [],
+                        borderColor: CONFIG.ui.charts.colors[0],
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            }
+        );
+
+        this.charts.utilization = new Chart(
+            document.createElement('canvas'),
+            {
+                type: 'doughnut',
+                data: {
+                    labels: ['In Use', 'Available', 'Maintenance'],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: CONFIG.ui.charts.colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            }
+        );
+    }
+
+    async generateReport(type) {
+        this.currentReport = type;
+        let reportData;
+
+        try {
+            switch (type) {
+                case 'daily':
+                    reportData = await this.generateDailyReport();
+                    break;
+                case 'performance':
+                    reportData = await this.generatePerformanceReport();
+                    break;
+                case 'maintenance':
+                    reportData = await this.generateMaintenanceReport();
+                    break;
+                case 'inventory':
+                    reportData = await this.generateInventoryReport();
+                    break;
+            }
+
+            this.displayReport(reportData);
+        } catch (error) {
+            console.error('Error generating report:', error);
+            window.app.uiManager.showNotification('Error generating report', 'error');
+        }
+    }
+
+    async generateCustomReport() {
+        try {
+            const type = document.getElementById('customReportType').value;
+            const dateRange = this.getDateRange();
+
+            const reportData = await window.app.dbManager.generateCustomReport(type, dateRange);
+            this.displayReport({
+                title: `Custom ${type.charAt(0).toUpperCase() + type.slice(1)} Report`,
+                data: reportData,
+                dateRange
+            });
+        } catch (error) {
+            console.error('Error generating custom report:', error);
+            window.app.uiManager.showNotification('Error generating custom report', 'error');
+        }
+    }
+   // js/tabs/reports-tab.js (continued)
+    async generateDailyReport() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const [rentals, returns, maintenance] = await Promise.all([
+            window.app.dbManager.getRentalsByDate(today),
+            window.app.dbManager.getReturnsByDate(today),
+            window.app.dbManager.getMaintenanceByDate(today)
+        ]);
+
+        return {
+            title: 'Daily Activity Report',
+            date: today,
+            summary: {
+                totalRentals: rentals.length,
+                totalReturns: returns.length,
+                maintenanceIssues: maintenance.length,
+                revenue: this.calculateDailyRevenue(rentals, returns)
+            },
+            details: {
+                rentals,
+                returns,
+                maintenance
+            }
+        };
+    }
+
+    async generatePerformanceReport() {
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+
+        const [rentalTrends, utilizationData, peakHours] = await Promise.all([
+            window.app.dbManager.getRentalTrends(last30Days),
+            window.app.dbManager.getBicycleUtilization(),
+            window.app.dbManager.getPeakHours()
+        ]);
+
+        return {
+            title: 'Performance Analysis Report',
+            dateRange: { start: last30Days, end: new Date() },
+            trends: rentalTrends,
+            utilization: utilizationData,
+            peakHours,
+            analysis: this.analyzePerformanceData(rentalTrends, utilizationData)
+        };
+    }
+
+    async generateMaintenanceReport() {
+        const [current, history, statistics] = await Promise.all([
+            window.app.dbManager.getCurrentMaintenanceStatus(),
+            window.app.dbManager.getMaintenanceHistory(),
+            window.app.dbManager.getMaintenanceStatistics()
+        ]);
+
+        return {
+            title: 'Maintenance Status Report',
+            current,
+            history,
+            statistics,
+            analysis: this.analyzeMaintenanceData(current, history)
+        };
+    }
+
+    async generateInventoryReport() {
+        const [inventory, usage, maintenance] = await Promise.all([
+            window.app.dbManager.getBicycleInventory(),
+            window.app.dbManager.getBicycleUsageStats(),
+            window.app.dbManager.getBicycleMaintenanceHistory()
+        ]);
+
+        return {
+            title: 'Inventory Status Report',
+            inventory,
+            usage,
+            maintenance,
+            analysis: this.analyzeInventoryData(inventory, usage)
+        };
+    }
+
+    displayReport(reportData) {
+        const reportDisplay = document.getElementById('reportDisplay');
+        const reportTitle = document.getElementById('reportTitle');
+        const reportContent = document.getElementById('reportContent');
+
+        reportTitle.textContent = reportData.title;
+        reportContent.innerHTML = this.generateReportHTML(reportData);
+        
+        // Update charts if needed
+        this.updateReportCharts(reportData);
+        
+        reportDisplay.style.display = 'block';
+        reportDisplay.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    generateReportHTML(report) {
+        switch (this.currentReport) {
+            case 'daily':
+                return this.generateDailyReportHTML(report);
+            case 'performance':
+                return this.generatePerformanceReportHTML(report);
+            case 'maintenance':
+                return this.generateMaintenanceReportHTML(report);
+            case 'inventory':
+                return this.generateInventoryReportHTML(report);
+            default:
+                return this.generateCustomReportHTML(report);
+        }
+    }
+
+    generateDailyReportHTML(report) {
+        return `
+            <div class="report-section">
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h4>Total Rentals</h4>
+                        <p class="large-number">${report.summary.totalRentals}</p>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Total Returns</h4>
+                        <p class="large-number">${report.summary.totalReturns}</p>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Maintenance Issues</h4>
+                        <p class="large-number">${report.summary.maintenanceIssues}</p>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Daily Revenue</h4>
+                        <p class="large-number">$${report.summary.revenue.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                <div class="details-section">
+                    <h4>Rental Details</h4>
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Room</th>
+                                <th>Guest</th>
+                                <th>Bicycle</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${report.details.rentals.map(rental => `
+                                <tr>
+                                    <td>${this.formatTime(rental.timestamp)}</td>
+                                    <td>${rental.roomNumber}</td>
+                                    <td>${rental.guestName}</td>
+                                    <td>${rental.bicycleNumber}</td>
+                                    <td><span class="status-badge ${rental.status.toLowerCase()}">
+                                        ${rental.status}</span></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    updateReportCharts(report) {
+        if (!this.currentReport) return;
+
+        const chartContainer = document.createElement('div');
+        chartContainer.className = 'charts-container';
+
+        switch (this.currentReport) {
+            case 'performance':
+                this.updatePerformanceCharts(report, chartContainer);
+                break;
+            case 'maintenance':
+                this.updateMaintenanceCharts(report, chartContainer);
+                break;
+            case 'inventory':
+                this.updateInventoryCharts(report, chartContainer);
+                break;
+        }
+
+        const reportContent = document.getElementById('reportContent');
+        reportContent.insertBefore(chartContainer, reportContent.firstChild);
+    }
+
+    exportReport(format = 'excel') {
+        if (!this.currentReport) return;
+
+        try {
+            const reportData = this.prepareReportForExport();
+            
+            switch (format) {
+                case 'excel':
+                    this.exportToExcel(reportData);
+                    break;
+                case 'pdf':
+                    this.exportToPDF(reportData);
+                    break;
+                case 'csv':
+                    this.exportToCSV(reportData);
+                    break;
+            }
+        } catch (error) {
+            console.error('Error exporting report:', error);
+            window.app.uiManager.showNotification('Error exporting report', 'error');
+        }
+    }
+
+    printReport() {
+        const printWindow = window.open('', '_blank');
+        const reportContent = document.getElementById('reportContent').cloneNode(true);
+        
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>${this.currentReport} Report</title>
+                    <link rel="stylesheet" href="styles.css">
+                    <style>
+                        @media print {
+                            .no-print { display: none; }
+                            .report-content { padding: 20px; }
+                            .page-break { page-break-before: always; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="report-content">
+                        <h1>${this.currentReport} Report</h1>
+                        ${reportContent.innerHTML}
+                    </div>
+                </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    getDateRange() {
+        const rangeType = document.getElementById('dateRange').value;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        switch (rangeType) {
+            case 'today':
+                return { start: today, end: new Date() };
+            case 'yesterday':
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                return { start: yesterday, end: today };
+            case 'lastWeek':
+                const lastWeek = new Date(today);
+                lastWeek.setDate(lastWeek.getDate() - 7);
+                return { start: lastWeek, end: new Date() };
+            case 'lastMonth':
+                const lastMonth = new Date(today);
+                lastMonth.setDate(lastMonth.getDate() - 30);
+                return { start: lastMonth, end: new Date() };
+            case 'custom':
+                return {
+                    start: new Date(document.getElementById('startDate').value),
+                    end: new Date(document.getElementById('endDate').value)
+                };
+        }
+    }
+
+    formatTime(date) {
+        return new Date(date).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    formatDate(date) {
+        return new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+}
+ // Add to DatabaseManager class in database.js
+class DatabaseManager {
+    // ... (previous methods remain)
+
+    async generateCustomReport(type, dateRange) {
+        try {
+            let queryRef = this.db.collection(type);
+            
+            // Add date range filter
+            queryRef = queryRef.where('timestamp', '>=', dateRange.start)
+                             .where('timestamp', '<=', dateRange.end);
+
+            const snapshot = await queryRef.get();
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('Error generating custom report:', error);
+            throw error;
+        }
+    }
+
+    async getRentalTrends(startDate) {
+        try {
+            const snapshot = await this.db.collection('rentals')
+                .where('timestamp', '>=', startDate)
+                .orderBy('timestamp')
+                .get();
+
+            return this.processTrendsData(snapshot.docs);
+        } catch (error) {
+            console.error('Error getting rental trends:', error);
+            throw error;
+        }
+    }
+
+    async getBicycleUtilization() {
+        try {
+            const snapshot = await this.db.collection('bicycles')
+                .get();
+
+            const utilization = {
+                available: 0,
+                inUse: 0,
+                maintenance: 0
+            };
+
+            snapshot.forEach(doc => {
+                const status = doc.data().status;
+                utilization[status.toLowerCase()] = (utilization[status.toLowerCase()] || 0) + 1;
+            });
+
+            return utilization;
+        } catch (error) {
+            console.error('Error getting bicycle utilization:', error);
+            throw error;
+        }
+    }
+
+    async getMaintenanceStatistics() {
+        try {
+            const snapshot = await this.db.collection('maintenance')
+                .get();
+
+            const stats = {
+                totalIssues: 0,
+                avgRepairTime: 0,
+                byType: {},
+                byPriority: {}
+            };
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                stats.totalIssues++;
+                stats.byType[data.issueType] = (stats.byType[data.issueType] || 0) + 1;
+                stats.byPriority[data.priority] = (stats.byPriority[data.priority] || 0) + 1;
+            });
+
+            return stats;
+        } catch (error) {
+            console.error('Error getting maintenance statistics:', error);
+            throw error;
+        }
+    }
+
+    processTrendsData(docs) {
+        const trends = {};
+        
+        docs.forEach(doc => {
+            const data = doc.data();
+            const date = this.formatDate(data.timestamp.toDate());
+            trends[date] = (trends[date] || 0) + 1;
+        });
+
+        return Object.entries(trends).map(([date, count]) => ({
+            date,
+            count
+        }));
+    }
+}
+// js/export-manager.js
+class ExportManager {
+    constructor() {
+        this.excelJS = null;
+        this.pdfMake = null;
+        this.loadDependencies();
+    }
+
+    async loadDependencies() {
+        // Load required libraries for export
+        await Promise.all([
+            this.loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js'),
+            this.loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js')
+        ]);
+    }
+
+    loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    async exportToExcel(data, reportType) {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet(reportType);
+
+        // Add header
+        worksheet.addRow(['Report Type: ' + reportType]);
+        worksheet.addRow(['Generated: ' + new Date().toLocaleString()]);
+        worksheet.addRow([]);
+
+        // Add data based on report type
+        switch (reportType) {
+            case 'daily':
+                this.formatDailyReportExcel(worksheet, data);
+                break;
+            case 'performance':
+                this.formatPerformanceReportExcel(worksheet, data);
+                break;
+            case 'maintenance':
+                this.formatMaintenanceReportExcel(worksheet, data);
+                break;
+            case 'inventory':
+                this.formatInventoryReportExcel(worksheet, data);
+                break;
+        }
+
+        // Style the worksheet
+        this.styleExcelWorksheet(worksheet);
+
+        // Generate and download
+        const buffer = await workbook.xlsx.writeBuffer();
+        this.downloadFile(
+            new Blob([buffer]),
+            `${reportType}_report_${new Date().toISOString()}.xlsx`,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+    }
+
+    async exportToPDF(data, reportType) {
+        const docDefinition = {
+            content: [
+                { text: `${reportType.toUpperCase()} REPORT`, style: 'header' },
+                { text: `Generated: ${new Date().toLocaleString()}`, style: 'subheader' },
+                { text: '\n' }
+            ],
+            styles: this.getPDFStyles()
+        };
+
+        // Add content based on report type
+        switch (reportType) {
+            case 'daily':
+                this.formatDailyReportPDF(docDefinition, data);
+                break;
+            case 'performance':
+                this.formatPerformanceReportPDF(docDefinition, data);
+                break;
+            case 'maintenance':
+                this.formatMaintenanceReportPDF(docDefinition, data);
+                break;
+            case 'inventory':
+                this.formatInventoryReportPDF(docDefinition, data);
+                break;
+        }
+
+        // Generate and download
+        const pdfDoc = pdfMake.createPdf(docDefinition);
+        pdfDoc.download(`${reportType}_report_${new Date().toISOString()}.pdf`);
+    }
+
+    exportToCSV(data, reportType) {
+        let csv = '';
+        
+        // Add headers and data based on report type
+        switch (reportType) {
+            case 'daily':
+                csv = this.formatDailyReportCSV(data);
+                break;
+            case 'performance':
+                csv = this.formatPerformanceReportCSV(data);
+                break;
+            case 'maintenance':
+                csv = this.formatMaintenanceReportCSV(data);
+                break;
+            case 'inventory':
+                csv = this.formatInventoryReportCSV(data);
+                break;
+        }
+
+        // Download
+        this.downloadFile(
+            new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
+            `${reportType}_report_${new Date().toISOString()}.csv`,
+            'text/csv'
+        );
+    }
+
+    downloadFile(blob, filename, mimeType) {
+        const link = document.createElement('a');
+        if (navigator.msSaveBlob) {
+            navigator.msSaveBlob(blob, filename);
+            return;
+        }
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', filename);
+        link.setAttribute('type', mimeType);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// js/analytics-manager.js
+class AnalyticsManager {
+    constructor() {
+        this.cachedData = new Map();
+        this.initializeAnalytics();
+    }
+
+    async initializeAnalytics() {
+        // Initialize real-time analytics listeners
+        this.setupRealtimeListeners();
+        // Load initial analytics data
+        await this.loadInitialData();
+    }
+
+    async loadInitialData() {
+        try {
+            const [rentals, maintenance, inventory] = await Promise.all([
+                window.app.dbManager.getRecentRentals(),
+                window.app.dbManager.getRecentMaintenance(),
+                window.app.dbManager.getCurrentInventory()
+            ]);
+
+            this.processInitialData(rentals, maintenance, inventory);
+        } catch (error) {
+            console.error('Error loading initial analytics data:', error);
+        }
+    }
+
+    setupRealtimeListeners() {
+        // Listen for real-time updates
+        window.app.dbManager.onRentalsChanged(changes => {
+            this.updateRentalMetrics(changes);
+        });
+
+        window.app.dbManager.onMaintenanceChanged(changes => {
+            this.updateMaintenanceMetrics(changes);
+        });
+    }
+
+    async analyzePerformanceTrends(data) {
+        // Calculate key performance indicators
+        const kpis = {
+            avgDailyRentals: this.calculateAverageDailyRentals(data),
+            peakHours: this.identifyPeakHours(data),
+            utilization: await this.calculateUtilizationRate(data),
+            seasonality: this.analyzeSeasonality(data),
+            trends: this.identifyTrends(data)
+        };
+
+        // Perform predictive analysis
+        const predictions = await this.generatePredictions(data);
+
+        return {
+            kpis,
+            predictions,
+            recommendations: this.generateRecommendations(kpis, predictions)
+        };
+    }
+
+    calculateAverageDailyRentals(data) {
+        const dailyRentals = this.groupByDay(data);
+        return {
+            average: this.calculateAverage(Object.values(dailyRentals)),
+            breakdown: dailyRentals
+        };
+    }
+
+    identifyPeakHours(data) {
+        const hourlyDistribution = this.groupByHour(data);
+        const peaks = this.findPeakPeriods(hourlyDistribution);
+        return {
+            distribution: hourlyDistribution,
+            peaks,
+            recommendations: this.generatePeakTimeRecommendations(peaks)
+        };
+    }
+
+    async calculateUtilizationRate(data) {
+        const total = await window.app.dbManager.getTotalBicycles();
+        const dailyUtilization = this.calculateDailyUtilization(data, total);
+        return {
+            overall: this.calculateAverage(Object.values(dailyUtilization)),
+            daily: dailyUtilization,
+            recommendations: this.generateUtilizationRecommendations(dailyUtilization)
+        };
+    }
+
+    analyzeMaintenancePatterns(maintenanceData) {
+        const patterns = {
+            frequency: this.calculateMaintenanceFrequency(maintenanceData),
+            commonIssues: this.identifyCommonIssues(maintenanceData),
+            bicycleReliability: this.analyzeBicycleReliability(maintenanceData)
+        };
+
+        return {
+            patterns,
+            recommendations: this.generateMaintenanceRecommendations(patterns)
+        };
+    }
+
+    generatePredictions(historicalData) {
+        // Implement simple linear regression for predictions
+        const predictions = {
+            nextWeek: this.predictNextWeek(historicalData),
+            nextMonth: this.predictNextMonth(historicalData),
+            seasonalForecast: this.generateSeasonalForecast(historicalData)
+        };
+
+        return predictions;
+    }
+
+    generateRecommendations(kpis, predictions) {
+        const recommendations = [];
+
+        // Analyze utilization
+        if (kpis.utilization.overall < 0.5) {
+            recommendations.push({
+                type: 'utilization',
+                priority: 'high',
+                suggestion: 'Consider reducing fleet size or implementing promotional activities',
+                impact: 'Improve resource efficiency and reduce maintenance costs'
+            });
+        }
+
+        // Analyze peak times
+        if (kpis.peakHours.peaks.length > 0) {
+            recommendations.push({
+                type: 'capacity',
+                priority: 'medium',
+                suggestion: 'Adjust staffing and bicycle availability during peak hours',
+                impact: 'Better service during high-demand periods'
+            });
+        }
+
+        return recommendations;
+    }
+
+    groupByDay(data) {
+        return data.reduce((acc, item) => {
+            const day = new Date(item.timestamp).toLocaleDateString();
+            acc[day] = (acc[day] || 0) + 1;
+            return acc;
+        }, {});
+    }
+
+    groupByHour(data) {
+        return data.reduce((acc, item) => {
+            const hour = new Date(item.timestamp).getHours();
+            acc[hour] = (acc[hour] || 0) + 1;
+            return acc;
+        }, {});
+    }
+
+    findPeakPeriods(hourlyData) {
+        const average = this.calculateAverage(Object.values(hourlyData));
+        return Object.entries(hourlyData)
+            .filter(([_, count]) => count > average * 1.5)
+            .map(([hour]) => parseInt(hour));
+    }
+
+    calculateAverage(numbers) {
+        return numbers.reduce((a, b) => a + b, 0) / numbers.length;
+    }
+}
+   // js/visualization-manager.js
+class VisualizationManager {
+    constructor() {
+        this.charts = new Map();
+        this.realtimeUpdates = new Map();
+        this.initializeChartLibraries();
+    }
+
+    async initializeChartLibraries() {
+        this.setupBaseCharts();
+        this.setupRealtimeUpdates();
+    }
+
+    setupBaseCharts() {
+        // Utilization Gauge Chart
+        this.createUtilizationGauge();
+        
+        // Timeline Chart
+        this.createTimelineChart();
+        
+        // Heatmap Chart
+        this.createActivityHeatmap();
+        
+        // Performance Metrics Chart
+        this.createPerformanceMetrics();
+    }
+
+    createUtilizationGauge() {
+        return new Chart(document.createElement('canvas'), {
+            type: 'doughnut',
+            data: {
+                labels: ['In Use', 'Available', 'Maintenance'],
+                datasets: [{
+                    data: [0, 0, 0],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 99, 132, 0.8)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                circumference: 180,
+                rotation: -90,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Current Utilization'
+                    }
+                }
+            }
+        });
+    }
+
+    createTimelineChart() {
+        return new Chart(document.createElement('canvas'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Rentals',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    tension: 0.4
+                }, {
+                    label: 'Returns',
+                    data: [],
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    createActivityHeatmap() {
+        // Create heatmap using custom implementation
+        const heatmap = {
+            data: new Array(7).fill(0).map(() => new Array(24).fill(0)),
+            maxValue: 0,
+            
+            update(data) {
+                // Reset data
+                this.data = new Array(7).fill(0).map(() => new Array(24).fill(0));
+                this.maxValue = 0;
+
+                // Process data
+                data.forEach(item => {
+                    const date = new Date(item.timestamp);
+                    const day = date.getDay();
+                    const hour = date.getHours();
+                    this.data[day][hour]++;
+                    this.maxValue = Math.max(this.maxValue, this.data[day][hour]);
+                });
+
+                this.render();
+            },
+
+            render() {
+                const container = document.createElement('div');
+                container.className = 'heatmap-container';
+
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const hours = Array.from({length: 24}, (_, i) => i);
+
+                // Create grid
+                this.data.forEach((dayData, dayIndex) => {
+                    const row = document.createElement('div');
+                    row.className = 'heatmap-row';
+
+                    dayData.forEach((value, hourIndex) => {
+                        const cell = document.createElement('div');
+                        cell.className = 'heatmap-cell';
+                        const intensity = value / this.maxValue;
+                        cell.style.backgroundColor = this.getHeatColor(intensity);
+                        cell.title = `${days[dayIndex]} ${hours[hourIndex]}:00 - ${value} activities`;
+                        row.appendChild(cell);
+                    });
+
+                    container.appendChild(row);
+                });
+
+                return container;
+            },
+
+            getHeatColor(intensity) {
+                const h = (1 - intensity) * 240; // Hue from blue to red
+                return `hsl(${h}, 70%, 50%)`;
+            }
+        };
+
+        return heatmap;
+    }
+
+    createPerformanceMetrics() {
+        const performanceChart = new Chart(document.createElement('canvas'), {
+            type: 'radar',
+            data: {
+                labels: [
+                    'Utilization Rate',
+                    'Maintenance Efficiency',
+                    'Return Rate',
+                    'Customer Satisfaction',
+                    'Revenue',
+                    'Availability'
+                ],
+                datasets: [{
+                    label: 'Current Period',
+                    data: [0, 0, 0, 0, 0, 0],
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
+                }, {
+                    label: 'Previous Period',
+                    data: [0, 0, 0, 0, 0, 0],
+                    fill: true,
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(255, 99, 132, 1)'
+                }]
+            },
+            options: {
+                elements: {
+                    line: {
+                        borderWidth: 3
+                    }
+                },
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 100
+                    }
+                }
+            }
+        });
+
+        return performanceChart;
+    }
+
+    setupRealtimeUpdates() {
+        // Set up WebSocket or Firebase real-time listeners
+        this.setupUtilizationUpdates();
+        this.setupActivityUpdates();
+        this.setupPerformanceUpdates();
+    }
+
+    setupUtilizationUpdates() {
+        window.app.dbManager.onInventoryChanged(changes => {
+            const utilization = this.calculateUtilization(changes);
+            this.updateUtilizationGauge(utilization);
+        });
+    }
+
+    updateUtilizationGauge(data) {
+        const chart = this.charts.get('utilization');
+        if (chart) {
+            chart.data.datasets[0].data = [
+                data.inUse,
+                data.available,
+                data.maintenance
+            ];
+            chart.update();
+        }
+    }
+
+    calculateUtilization(changes) {
+        // Process changes and calculate current utilization
+        const utilization = {
+            inUse: 0,
+            available: 0,
+            maintenance: 0
+        };
+
+        changes.forEach(change => {
+            const status = change.doc.data().status;
+            utilization[status.toLowerCase()]++;
+        });
+
+        return utilization;
+    }
+
+    updateTimelineChart(newData) {
+        const chart = this.charts.get('timeline');
+        if (chart) {
+            // Process new data
+            const { labels, rentals, returns } = this.processTimelineData(newData);
+            
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = rentals;
+            chart.data.datasets[1].data = returns;
+            chart.update();
+        }
+    }
+
+    processTimelineData(data) {
+        // Group data by hour
+        const hourlyData = data.reduce((acc, item) => {
+            const hour = new Date(item.timestamp).getHours();
+            if (!acc[hour]) {
+                acc[hour] = { rentals: 0, returns: 0 };
+            }
+            if (item.type === 'rental') acc[hour].rentals++;
+            if (item.type === 'return') acc[hour].returns++;
+            return acc;
+        }, {});
+
+        // Convert to arrays for chart
+        const hours = Object.keys(hourlyData).sort((a, b) => a - b);
+        return {
+            labels: hours.map(h => `${h}:00`),
+            rentals: hours.map(h => hourlyData[h].rentals),
+            returns: hours.map(h => hourlyData[h].returns)
+        };
+    }
+
+    updateHeatmap(data) {
+        const heatmap = this.charts.get('heatmap');
+        if (heatmap) {
+            heatmap.update(data);
+        }
+    }
+
+    updatePerformanceMetrics(currentData, previousData) {
+        const chart = this.charts.get('performance');
+        if (chart) {
+            chart.data.datasets[0].data = this.calculatePerformanceMetrics(currentData);
+            chart.data.datasets[1].data = this.calculatePerformanceMetrics(previousData);
+            chart.update();
+        }
+    }
+
+    calculatePerformanceMetrics(data) {
+        return [
+            this.calculateUtilizationRate(data),
+            this.calculateMaintenanceEfficiency(data),
+            this.calculateReturnRate(data),
+            this.calculateCustomerSatisfaction(data),
+            this.calculateRevenue(data),
+            this.calculateAvailability(data)
+        ];
+    }
+}
+// js/realtime-analytics.js
+class RealtimeAnalytics {
+    constructor() {
+        this.metrics = new Map();
+        this.listeners = new Map();
+        this.updateInterval = 5000; // 5 seconds
+        this.initialize();
+    }
+
+    initialize() {
+        this.setupMetrics();
+        this.startRealtimeUpdates();
+    }
+
+    setupMetrics() {
+        // Define core metrics
+        this.metrics.set('utilization', {
+            value: 0,
+            history: [],
+            threshold: 0.8,
+            alerts: []
+        });
+
+        this.metrics.set('maintenance', {
+            pending: 0,
+            inProgress: 0,
+            completed: 0,
+            alerts: []
+        });
+
+        this.metrics.set('activity', {
+            hourly: new Array(24).fill(0),
+            daily: [],
+            trends: []
+        });
+    }
+
+    startRealtimeUpdates() {
+        // Set up real-time listeners
+        this.setupDatabaseListeners();
+        
+        // Start periodic updates
+        setInterval(() => this.updateMetrics(), this.updateInterval);
+    }
+
+    setupDatabaseListeners() {
+        // Listen for rental changes
+        window.app.dbManager.onRentalsChanged(changes => {
+            this.processRentalChanges(changes);
+        });
+
+        // Listen for maintenance changes
+        window.app.dbManager.onMaintenanceChanged(changes => {
+            this.processMaintenanceChanges(changes);
+        });
+
+        // Listen for inventory changes
+        window.app.dbManager.onInventoryChanged(changes => {
+            this.processInventoryChanges(changes);
+        });
+    }
+
+    processRentalChanges(changes) {
+        changes.forEach(change => {
+            const data = change.data();
+            
+            // Update activity metrics
+            this.updateActivityMetrics(data);
+            
+            // Check for anomalies
+            this.detectAnomalies(data);
+            
+            // Update trends
+            this.updateTrends('rentals', data);
+        });
+
+        // Notify listeners
+        this.notifyListeners('rental-update');
+    }
+
+    updateActivityMetrics(data) {
+        const hour = new Date(data.timestamp).getHours();
+        const activity = this.metrics.get('activity');
+        
+        // Update hourly stats
+        activity.hourly[hour]++;
+        
+        // Update daily stats
+        const today = new Date().toDateString();
+        const dailyIndex = activity.daily.findIndex(d => d.date === today);
+        if (dailyIndex >= 0) {
+            activity.daily[dailyIndex].count++;
+        } else {
+            activity.daily.push({ date: today, count: 1 });
+        }
+        
+        // Maintain history length
+        if (activity.daily.length > 30) {
+            activity.daily.shift();
+        }
+    }
+
+    detectAnomalies(data) {
+        // Calculate standard deviation and mean
+        const stats = this.calculateStatistics();
+        
+        // Check for anomalies
+        const isAnomaly = this.checkForAnomaly(data, stats);
+        
+        if (isAnomaly) {
+            this.createAlert({
+                type: 'anomaly',
+                message: 'Unusual activity detected',
+                data: data,
+                timestamp: new Date()
+            });
+        }
+    }
+
+    calculateStatistics() {
+        const activity = this.metrics.get('activity');
+        const values = activity.hourly;
+        
+        const mean = values.reduce((a, b) => a + b) / values.length;
+        const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+        const stdDev = Math.sqrt(variance);
+
+        return { mean, stdDev };
+    }
+
+    checkForAnomaly(data, stats) {
+        const { mean, stdDev } = stats;
+        const value = this.getMetricValue(data);
+        
+        // Check if value is more than 2 standard deviations from mean
+        return Math.abs(value - mean) > (2 * stdDev);
+    }
+
+    createAlert(alert) {
+        // Add alert to relevant metric
+        const metric = this.metrics.get(alert.type);
+        if (metric) {
+            metric.alerts.push(alert);
+            
+            // Maintain alerts history length
+            if (metric.alerts.length > 100) {
+                metric.alerts.shift();
+            }
+            
+            // Notify listeners
+            this.notifyListeners('alert');
+        }
+    }
+
+    notifyListeners(event) {
+        const listeners = this.listeners.get(event) || [];
+        listeners.forEach(callback => {
+            try {
+                callback();
+            } catch (error) {
+                console.error('Error in analytics listener:', error);
+            }
+        });
+    }
+
+    addListener(event, callback) {
+        if (!this.listeners.has(event)) {
+            this.listeners.set(event, []);
+        }
+        this.listeners.get(event).push(callback);
+    }
+
+    removeListener(event, callback) {
+        const listeners = this.listeners.get(event);
+        if (listeners) {
+            const index
+          // js/realtime-analytics.js (continued)
+    removeListener(event, callback) {
+        const listeners = this.listeners.get(event);
+        if (listeners) {
+            const index = listeners.indexOf(callback);
+            if (index > -1) {
+                listeners.splice(index, 1);
+            }
+        }
+    }
+
+    updateMetrics() {
+        this.updateUtilizationMetrics();
+        this.updateMaintenanceMetrics();
+        this.updatePerformanceMetrics();
+        this.checkAlerts();
+    }
+
+    async updateUtilizationMetrics() {
+        try {
+            const currentUtilization = await this.calculateCurrentUtilization();
+            const metric = this.metrics.get('utilization');
+            
+            metric.value = currentUtilization.rate;
+            metric.history.push({
+                timestamp: new Date(),
+                value: currentUtilization.rate,
+                breakdown: currentUtilization.breakdown
+            });
+
+            // Keep last 24 hours of history
+            if (metric.history.length > 24) {
+                metric.history.shift();
+            }
+
+            // Check utilization thresholds
+            this.checkUtilizationThresholds(currentUtilization);
+
+        } catch (error) {
+            console.error('Error updating utilization metrics:', error);
+        }
+    }
+
+    async calculateCurrentUtilization() {
+        const stats = await window.app.dbManager.getBicycleStats();
+        const total = stats.total || 1; // Prevent division by zero
+
+        return {
+            rate: (stats.inUse / total) * 100,
+            breakdown: {
+                inUse: stats.inUse,
+                available: stats.available,
+                maintenance: stats.maintenance,
+                total: total
+            }
+        };
+    }
+
+    checkUtilizationThresholds(utilization) {
+        const metric = this.metrics.get('utilization');
+
+        // High utilization alert
+        if (utilization.rate > metric.threshold * 100) {
+            this.createAlert({
+                type: 'utilization',
+                severity: 'high',
+                message: 'High utilization detected - consider adding more bicycles',
+                value: utilization.rate,
+                timestamp: new Date()
+            });
+        }
+
+        // Low utilization alert
+        if (utilization.rate < 20) {
+            this.createAlert({
+                type: 'utilization',
+                severity: 'low',
+                message: 'Low utilization detected - consider promotional activities',
+                value: utilization.rate,
+                timestamp: new Date()
+            });
+        }
+    }
+
+    async updateMaintenanceMetrics() {
+        try {
+            const maintenanceStats = await window.app.dbManager.getMaintenanceStats();
+            const metric = this.metrics.get('maintenance');
+
+            metric.pending = maintenanceStats.pending;
+            metric.inProgress = maintenanceStats.inProgress;
+            metric.completed = maintenanceStats.completed;
+
+            // Check maintenance backlog
+            this.checkMaintenanceBacklog(maintenanceStats);
+
+        } catch (error) {
+            console.error('Error updating maintenance metrics:', error);
+        }
+    }
+
+    checkMaintenanceBacklog(stats) {
+        // Alert if pending maintenance is high
+        if (stats.pending > 10) {
+            this.createAlert({
+                type: 'maintenance',
+                severity: 'warning',
+                message: `High number of pending maintenance tasks: ${stats.pending}`,
+                timestamp: new Date()
+            });
+        }
+
+        // Alert if maintenance tasks are taking too long
+        if (stats.averageCompletionTime > 48) { // 48 hours threshold
+            this.createAlert({
+                type: 'maintenance',
+                severity: 'warning',
+                message: 'Maintenance tasks are taking longer than expected',
+                timestamp: new Date()
+            });
+        }
+    }
+
+    async updatePerformanceMetrics() {
+        try {
+            const currentMetrics = await this.calculatePerformanceMetrics();
+            
+            // Update trend analysis
+            this.updateTrendAnalysis(currentMetrics);
+            
+            // Identify potential issues
+            this.identifyPerformanceIssues(currentMetrics);
+            
+            // Update predictive models
+            await this.updatePredictiveModels(currentMetrics);
+
+        } catch (error) {
+            console.error('Error updating performance metrics:', error);
+        }
+    }
+
+    async calculatePerformanceMetrics() {
+        const now = new Date();
+        const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+        const stats = await Promise.all([
+            window.app.dbManager.getRentalStats(hourAgo, now),
+            window.app.dbManager.getReturnStats(hourAgo, now),
+            window.app.dbManager.getMaintenanceStats(hourAgo, now)
+        ]);
+
+        return {
+            rentalRate: stats[0].rate,
+            returnRate: stats[1].rate,
+            maintenanceRate: stats[2].rate,
+            timestamp: now
+        };
+    }
+
+    updateTrendAnalysis(currentMetrics) {
+        const activity = this.metrics.get('activity');
+        
+        // Add current metrics to trends
+        activity.trends.push(currentMetrics);
+        
+        // Keep last 24 data points
+        if (activity.trends.length > 24) {
+            activity.trends.shift();
+        }
+
+        // Calculate trend direction
+        const trend = this.calculateTrendDirection(activity.trends);
+        
+        // Update trend indicators
+        this.updateTrendIndicators(trend);
+    }
+
+    calculateTrendDirection(trends) {
+        if (trends.length < 2) return 'stable';
+
+        const recent = trends.slice(-5); // Last 5 data points
+        const values = recent.map(t => t.rentalRate);
+        
+        const slope = this.calculateSlope(values);
+        
+        if (slope > 0.1) return 'increasing';
+        if (slope < -0.1) return 'decreasing';
+        return 'stable';
+    }
+
+    calculateSlope(values) {
+        const n = values.length;
+        if (n < 2) return 0;
+
+        const xMean = (n - 1) / 2;
+        const yMean = values.reduce((a, b) => a + b) / n;
+
+        const numerator = values.reduce((sum, y, x) => sum + (x - xMean) * (y - yMean), 0);
+        const denominator = values.reduce((sum, _, x) => sum + Math.pow(x - xMean, 2), 0);
+
+        return numerator / denominator;
+    }
+
+    updateTrendIndicators(trend) {
+        // Update UI indicators
+        window.app.uiManager.updateTrendIndicators({
+            trend,
+            timestamp: new Date()
+        });
+
+        // Generate alerts for significant trends
+        if (trend !== 'stable') {
+            this.createAlert({
+                type: 'trend',
+                severity: 'info',
+                message: `Rental rate is ${trend}`,
+                timestamp: new Date()
+            });
+        }
+    }
+
+    async updatePredictiveModels(currentMetrics) {
+        try {
+            // Update prediction models with new data
+            const predictions = await this.generatePredictions(currentMetrics);
+            
+            // Store predictions for comparison
+            this.storePredictions(predictions);
+            
+            // Check prediction accuracy
+            this.checkPredictionAccuracy();
+            
+        } catch (error) {
+            console.error('Error updating predictive models:', error);
+        }
+    }
+
+    generatePredictions(currentMetrics) {
+        // Simple moving average prediction
+        const activity = this.metrics.get('activity');
+        const trends = activity.trends;
+
+        if (trends.length < 5) return null;
+
+        const recentValues = trends.slice(-5).map(t => t.rentalRate);
+        const average = recentValues.reduce((a, b) => a + b) / recentValues.length;
+
+        return {
+            nextHour: average,
+            confidence: this.calculateConfidence(recentValues, average),
+            timestamp: new Date()
+        };
+    }
+
+    calculateConfidence(values, average) {
+        const variance = values.reduce((sum, value) => {
+            return sum + Math.pow(value - average, 2);
+        }, 0) / values.length;
+
+        return Math.max(0, 100 - (Math.sqrt(variance) * 10));
+    }
+
+    storePredictions(predictions) {
+        if (!predictions) return;
+
+        const metric = this.metrics.get('predictions') || {
+            history: [],
+            accuracy: []
+        };
+
+        metric.history.push(predictions);
+
+        // Keep last 24 predictions
+        if (metric.history.length > 24) {
+            metric.history.shift();
+        }
+
+        this.metrics.set('predictions', metric);
+    }
+
+    checkPredictionAccuracy() {
+        const metric = this.metrics.get('predictions');
+        if (!metric || metric.history.length < 2) return;
+
+        const previousPrediction = metric.history[metric.history.length - 2];
+        const actualValue = this.metrics.get('activity').trends.slice(-1)[0]?.rentalRate;
+
+        if (previousPrediction && actualValue) {
+            const accuracy = 100 - Math.abs(((actualValue - previousPrediction.nextHour) / actualValue) * 100);
+            metric.accuracy.push({
+                predicted: previousPrediction.nextHour,
+                actual: actualValue,
+                accuracy: accuracy,
+                timestamp: new Date()
+            });
+
+            // Keep last 24 accuracy measurements
+            if (metric.accuracy.length > 24) {
+                metric.accuracy.shift();
+            }
+        }
+    }
+}
+
+// Initialize real-time analytics
+const realtimeAnalytics = new RealtimeAnalytics();
+export default realtimeAnalytics;
+          
+              
