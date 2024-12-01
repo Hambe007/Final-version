@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bicycle Management Dashboard</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.5.1/chart.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.1/firebase-firestore.js"></script>
+    <style>
+        .tab-container {
+            margin-top: 20px;
+        }
+        .tab-button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .dashboard-item {
+            text-align: center;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tab-container">
+            <button class="tab-button" data-tab="dashboard">Dashboard</button>
+            <button class="tab-button" data-tab="maintenance">Maintenance</button>
+            <button class="tab-button" data-tab="bicycles">Bicycles</button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content">
+            <div class="card">
+                <h3 class="card-title">Dashboard Overview</h3>
+                <div class="dashboard-grid">
+                    <div class="dashboard-item">
+                        <h4>Total Bicycles</h4>
+                        <p id="totalBicycles">-</p>
+                    </div>
+                    <div class="dashboard-item">
+                        <h4>Available</h4>
+                        <p id="availableBicycles">-</p>
+                    </div>
+                    <div class="dashboard-item">
+                        <h4>In Use</h4>
+                        <p id="inUseBicycles">-</p>
+                    </div>
+                    <div class="dashboard-item">
+                        <h4>Under Maintenance</h4>
+                        <p id="underMaintenanceBicycles">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Search Bicycle</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Search By</label>
+                        <select class="form-control" id="searchBy">
+                            <option value="bicycleNumber">Bicycle Number</option>
+                            <option value="roomNumber">Room Number</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label id="searchLabel">Bicycle Number</label>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Enter bicycle number">
+                    </div>
+                    <button class="btn btn-primary" onclick="searchBicycle()">Search</button>
+                </div>
+                <div id="searchResult" style="margin-top: 20px;"></div>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">Analytics & Insights</h3>
+                <div class="analytics-container">
+                    <canvas id="usageAnalyticsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Tab -->
+        <div id="maintenance" class="tab-content">
+            <div class="card">
+                <h3 class="card-title">Maintenance Overview</h3>
+                <div class="status-overview">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-value" id="pendingCount">0</div>
+                            <div class="status-label">Pending</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="inProgressCount">0</div>
+                            <div class="status-label">In Progress</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="completedCount">0</div>
+                            <div class="status-label">Completed Today</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bicycles Tab -->
+        <div id="bicycles" class="tab-content">
+            <div class="card">
+                <h3 class="card-title">Bicycle Details</h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Bicycle Number</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Location</th>
+                            <th>Last Maintenance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bicycleDetailsTable">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase configuration (replace with your own Firebase configuration)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Tab navigation functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function () {
+                const targetTab = this.getAttribute('data-tab');
+
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                this.classList.add('active');
+                document.getElementById(targetTab).classList.add('active');
+            });
+        });
+
+        // Dashboard metrics loader
+        function loadDashboardMetrics() {
+            db.collection('bicycles').get().then(snapshot => {
+                let total = snapshot.size;
+                let available = 0;
+                let inUse = 0;
+                let underMaintenance = 0;
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.status === 'Available') available++;
+                    if (data.status === 'In Use') inUse++;
+                    if (data.status === 'Under Maintenance') underMaintenance++;
+                });
+
+                document.getElementById('totalBicycles').textContent = total;
+                document.getElementById('availableBicycles').textContent = available;
+                document.getElementById('inUseBicycles').textContent = inUse;
+                document.getElementById('underMaintenanceBicycles').textContent = underMaintenance;
+            });
+        }
+
+        // Search bicycle functionality
+        document.getElementById('searchBy').addEventListener('change', function () {
+            const searchLabel = document.getElementById('searchLabel');
+            const searchInput = document.getElementById('searchInput');
+
+            if (this.value === 'roomNumber') {
+                searchLabel.textContent = 'Room Number';
+                searchInput.placeholder = 'Enter room number';
+            } else {
+                searchLabel.textContent = 'Bicycle Number';
+                searchInput.placeholder = 'Enter bicycle number';
+            }
+        });
+
+        function searchBicycle() {
+            const searchBy = document.getElementById('searchBy').value;
+            const searchValue = document.getElementById('searchInput').value.trim();
+            const searchResult = document.getElementById('searchResult');
+
+            if (!searchValue) {
+                searchResult.textContent = "Please enter a value to search.";
+                return;
+            }
+
+            let query = db.collection('bicycles');
+            if (searchBy === 'bicycleNumber') {
+                query = query.where('number', '==', searchValue);
+            } else if (searchBy === 'roomNumber') {
+                query = query.where('roomNumber', '==', searchValue);
+            }
+
+            query.get().then(snapshot => {
+                if (snapshot.empty) {
+                    searchResult.textContent = "No results found.";
+                    return;
+                }
+
+                let html = '<table class="table"><thead><tr><th>Bicycle Number</th><th>Room Number</th><th>Type</th><th>Status</th></tr></thead><tbody>';
+                snapshot.forEach(doc => {
+                    const bicycle = doc.data();
+                    html += `
+                        <tr>
+                            <td>${bicycle.number}</td>
+                            <td>${bicycle.roomNumber || 'N/A'}</td>
+                            <td>${bicycle.type}</td>
+                            <td>${bicycle.status}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table>';
+                searchResult.innerHTML = html;
+            }).catch(error => {
+                console.error("Error searching:", error);
+                searchResult.textContent = "Error searching.";
+            });
+        }
+
+        // Load analytics chart
+        function loadAnalyticsChart() {
+            const ctx = document.getElementById('usageAnalyticsChart').getContext('2d');
+            db.collection('rentals').get().then(snapshot => {
+                let data = {
+                    labels: ['Morning', 'Afternoon', 'Evening', 'Night'],
+                    datasets: [{
+                        label: 'Bicycle Usage',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
+                    }]
+                };
+
+                snapshot.forEach(doc => {
+                    const rental = doc.data();
+                    const hour = new Date(rental.startTime).getHours();
+                    if (hour >= 6 && hour < 12) data.datasets[0].data[0]++;
+                    else if (hour >= 12 && hour < 18) data.datasets[0].data[1]++;
+                    else if (hour >= 18 && hour < 24) data.datasets[0].data[2]++;
+                    else data.datasets[0].data[3]++;
+                });
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Load all data on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            loadDashboardMetrics();
+            loadAnalyticsChart();
+        });
+    </script>
+</body>
+</html>
